@@ -6,8 +6,9 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
 ## Funktionen
 
 - **Mehrere Setlists/Konzerte** speichern, umbenennen, löschen, als Text teilen.
-- **Import aus Google Notizen:** Notiz öffnen → ⋮ → „Senden“ → „Über andere Apps senden“ → *Setlist*.
-  Alternativ Text kopieren und in der App einfügen.
+- **Import per Kopieren/Einfügen:** Text aus Google Notizen oder einer beliebigen anderen App
+  kopieren → „Neue Setlist“ → „Aus Zwischenablage einfügen“. Aus Google Notizen geht es
+  auch direkt über ⋮ → „Senden“ → *Setlist*.
 - **Zerschneiden:** Die App schlägt Schnitte vor (nummerierte Zeilen 1., 2., … → Leerzeilen-Blöcke →
   jede Zeile). Tippen auf eine Zeile setzt/entfernt einen Schnitt. Erste Zeile eines Lieds = Titel,
   der Rest = Anweisungen. Zeilen vor dem ersten Schnitt (z. B. Überschrift) werden ignoriert.

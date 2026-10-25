@@ -111,12 +111,12 @@ fun HomeScreen(vm: MainViewModel, setlists: List<Setlist>) {
 private fun ImportHint() {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Setlist aus Google Notizen holen", style = MaterialTheme.typography.titleMedium)
-            Text("1. Notiz in Google Notizen (Keep) öffnen")
-            Text("2. Menü ⋮ → „Senden“ → „Über andere Apps senden“ → Setlist")
-            Text("3. Text in Lieder zerschneiden und übernehmen")
+            Text("So kommt deine Setlist in die App", style = MaterialTheme.typography.titleMedium)
+            Text("1. Text der Setlist kopieren (z. B. aus Google Notizen)")
+            Text("2. „Neue Setlist“ → „Aus Zwischenablage einfügen“")
+            Text("3. In Lieder zerschneiden und übernehmen")
             Text(
-                "Alternativ: Text der Notiz kopieren und über „Neue Setlist“ einfügen.",
+                "Tipp: Aus Google Notizen geht es auch direkt über ⋮ → „Senden“ → Setlist.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
