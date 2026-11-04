@@ -47,10 +47,7 @@ class MainActivity : ComponentActivity() {
         vm.startImport(body.trim('\n', '\r'), name)
     }
 
-    /**
-     * Bluetooth page turners/pedals usually send arrow or page keys; the volume buttons work as
-     * well. Both key down and up are swallowed so the volume does not change during a concert.
-     */
+    /** Bluetooth page turners/pedals usually send arrow or page keys. Volume keys stay volume keys. */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val key = when (event.keyCode) {
             in NEXT_KEYS -> PerformKey.NEXT
@@ -65,12 +62,11 @@ class MainActivity : ComponentActivity() {
     private companion object {
         val NEXT_KEYS = setOf(
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_PAGE_DOWN,
-            KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_VOLUME_DOWN,
-            KeyEvent.KEYCODE_MEDIA_NEXT,
+            KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_NEXT,
         )
         val PREVIOUS_KEYS = setOf(
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_PAGE_UP,
-            KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS,
         )
     }
 }

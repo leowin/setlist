@@ -25,8 +25,8 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   „Übernehmen“ speichert es), Vorzähler, Unterteilung (Achtel/Triolen/16tel), Lautstärke. Der Hintergrund
   des aktuellen Lieds zeigt die Schläge als große Spalten – die laufende leuchtet, die 1 heller –, damit
   man den Takt auch von weit weg sieht. Audio läuft nativ (C++ + Oboe) und ist sample-genau.
-- **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓, Leertaste/Enter und die Lautstärketasten blättern
-  (Bluetooth-Page-Turner funktionieren damit in der Regel direkt).
+- **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
+  funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
   Helligkeit) – ein Tippen oder ein Pedaldruck schaltet sofort wieder ein, ohne Sperrbildschirm.
 
