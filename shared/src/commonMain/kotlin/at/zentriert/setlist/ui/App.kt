@@ -14,13 +14,14 @@ fun App(vm: MainViewModel) {
         Surface {
             // Re-read on every change so edits show up immediately.
             val data by vm.data.collectAsStateWithLifecycle()
+            val scores by vm.scores.collectAsStateWithLifecycle()
             val setlists = data.setlists
             when (val screen = vm.screen) {
                 Screen.Home -> HomeScreen(vm, setlists)
                 is Screen.Import -> ImportScreen(vm, screen.state)
-                Screen.Library -> LibraryScreen(vm, data.library)
+                Screen.Library -> LibraryScreen(vm, data.library, scores)
                 is Screen.Edit -> setlists.firstOrNull { it.id == screen.setlistId }
-                    ?.let { EditScreen(vm, it, data.library) }
+                    ?.let { EditScreen(vm, it, data.library, scores) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }
                 is Screen.Perform -> setlists.firstOrNull { it.id == screen.setlistId }
                     ?.let { PerformScreen(vm, it) }

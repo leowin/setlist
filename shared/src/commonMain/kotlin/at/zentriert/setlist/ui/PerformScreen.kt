@@ -62,6 +62,9 @@ import at.zentriert.setlist.PerformSettings
 import at.zentriert.setlist.Setlist
 import at.zentriert.setlist.Song
 import at.zentriert.setlist.StageEffects
+import at.zentriert.setlist.audio.MetronomePosition
+import at.zentriert.setlist.ui.metronome.BeatBackground
+import at.zentriert.setlist.ui.metronome.MetronomeBar
 
 private val NotesColor = Color(0xFFE6E6E6)
 private val DimColor = Color(0xFF9E9E9E)
@@ -96,9 +99,14 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val upcoming = (1..settings.nextCount).map { songs.getOrNull(index + it) }
                 val current = songs.getOrNull(index)
+                val beats = vm.metronomePosition
+                val numerator = vm.tempoFor(current).numerator
                 if (maxWidth > maxHeight) {
                     Row(Modifier.fillMaxSize()) {
-                        CurrentSong(current, index, settings.fontSize, Modifier.weight(1.4f).fillMaxHeight())
+                        Box(Modifier.weight(1.4f).fillMaxHeight()) {
+                            BeatBackground(beats, numerator)
+                            CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
+                        }
                         VerticalDivider(color = DimColor.copy(alpha = 0.4f))
                         Column(Modifier.weight(1f).fillMaxHeight()) {
                             UpcomingSongs(upcoming, index, settings.fontSize)
@@ -106,12 +114,16 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                     }
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                        CurrentSong(current, index, settings.fontSize, Modifier.weight(1.4f).fillMaxWidth())
+                        Box(Modifier.weight(1.4f).fillMaxWidth()) {
+                            BeatBackground(beats, numerator)
+                            CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
+                        }
                         HorizontalDivider(color = DimColor.copy(alpha = 0.4f))
                         UpcomingSongs(upcoming, index, settings.fontSize)
                     }
                 }
             }
+            MetronomeBar(vm, setlist, songs.getOrNull(index))
             Row(
                 Modifier.fillMaxWidth().height(104.dp).padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

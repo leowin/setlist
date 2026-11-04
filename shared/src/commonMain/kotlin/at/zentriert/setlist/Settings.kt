@@ -4,6 +4,10 @@ data class PerformSettings(
     val fontSize: Float = 34f,
     val nextCount: Int = 1,
     val keepScreenOn: Boolean = true,
+    val clickVolume: Float = 0.8f,
+    /** 1 = beats only, 2 = eighths, 3 = triplets, 4 = sixteenths. */
+    val subdivision: Int = 1,
+    val countInBars: Int = 1,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -16,11 +20,17 @@ class SettingsStore(private val store: KeyValueStore) {
         fontSize = store.getFloat("fontSize", 34f),
         nextCount = store.getInt("nextCount", 1),
         keepScreenOn = store.getBoolean("keepScreenOn", true),
+        clickVolume = store.getFloat("clickVolume", 0.8f),
+        subdivision = store.getInt("subdivision", 1),
+        countInBars = store.getInt("countInBars", 1),
     )
 
     fun save(s: PerformSettings) {
         store.putFloat("fontSize", s.fontSize)
         store.putInt("nextCount", s.nextCount)
         store.putBoolean("keepScreenOn", s.keepScreenOn)
+        store.putFloat("clickVolume", s.clickVolume)
+        store.putInt("subdivision", s.subdivision)
+        store.putInt("countInBars", s.countInBars)
     }
 }

@@ -7,13 +7,16 @@ plugins {
 android {
     namespace = "at.zentriert.setlist"
     compileSdk = 35
+    // Needed here as well so the native libraries from :shared get stripped in release builds.
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "at.zentriert.setlist"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
     buildTypes {
@@ -31,6 +34,10 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    lint {
+        // The lint checks shipped with the multiplatform lifecycle 2.9 artifacts crash on AGP 8.7's lint.
+        disable += "NullSafeMutableLiveData"
+    }
 }
 
 dependencies {

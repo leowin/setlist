@@ -6,6 +6,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import at.zentriert.setlist.audio.AudioEngine
+import at.zentriert.setlist.audio.MetronomePosition
+import at.zentriert.setlist.audio.TransportConfig
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 sealed interface Screen {
     data object Home : Screen
@@ -32,10 +40,22 @@ class ImportState(text: String, name: String) {
 /** Keys a stage controller may send: arrow/page keys of Bluetooth page turners, volume buttons … */
 enum class PerformKey { NEXT, PREVIOUS }
 
+/** Tempo and meter as edited in the song dialog. */
+data class TempoEdit(val bpm: Double, val numerator: Int, val denominator: Int) {
+    val label get() = "${bpm.toBpmText()} · $numerator/$denominator"
+
+    companion object {
+        val DEFAULT = TempoEdit(120.0, 4, 4)
+        fun of(score: Score?) = score?.let { TempoEdit(it.bpm, it.meter.numerator, it.meter.denominator) }
+    }
+}
+
 class MainViewModel(
     private val repo: SetlistRepository,
     private val settingsStore: SettingsStore,
+    private val audio: AudioEngine,
 ) : ViewModel() {
+    val scores = repo.scores
     val data = repo.data
 
     var screen by mutableStateOf<Screen>(Screen.Home)
@@ -53,14 +73,22 @@ class MainViewModel(
 
     // --- navigation ---
 
-    fun goHome() { screen = Screen.Home }
+    fun goHome() { leavePerformance(); screen = Screen.Home }
     fun openLibrary() { screen = Screen.Library }
-    fun edit(id: String) { screen = Screen.Edit(id) }
+    fun edit(id: String) { leavePerformance(); screen = Screen.Edit(id) }
 
     fun perform(id: String, startAt: Int = 0) {
         performIndex = startAt
         blackout = false
+        performBpm = null
         screen = Screen.Perform(id)
+    }
+
+    private fun leavePerformance() {
+        if (screen is Screen.Perform) {
+            stopMetronome()
+            audio.suspendOutput()
+        }
     }
 
     fun startImport(text: String, name: String) {
@@ -75,8 +103,11 @@ class MainViewModel(
         }
         // Songs without instructions get them from the library, if known there.
         val songs = state.songs().map { song ->
-            if (song.notes.isNotBlank()) song
-            else song.copy(notes = repo.findInLibrary(song.title)?.notes.orEmpty())
+            val known = repo.findInLibrary(song.title)
+            song.copy(
+                notes = if (song.notes.isNotBlank()) song.notes else known?.notes.orEmpty(),
+                scoreId = known?.scoreId,
+            )
         }
         repo.remember(songs)
         val setlist = Setlist(name = name, songs = songs)
@@ -94,12 +125,25 @@ class MainViewModel(
 
     fun rename(id: String, name: String) = change(id) { it.copy(name = name.trim().ifEmpty { it.name }) }
 
-    fun saveSong(id: String, song: Song) {
+    fun saveSong(id: String, song: Song, tempo: TempoEdit? = null) {
+        val saved = withTempo(song, tempo)
         change(id) { s ->
             val i = s.songs.indexOfFirst { it.id == song.id }
-            s.copy(songs = if (i < 0) s.songs + song else s.songs.toMutableList().also { it[i] = song })
+            s.copy(songs = if (i < 0) s.songs + saved else s.songs.toMutableList().also { it[i] = saved })
         }
-        repo.remember(listOf(song))
+        repo.remember(listOf(saved))
+    }
+
+    fun score(song: Song?): Score? = repo.score(song?.scoreId)
+
+    /** Stores tempo/meter in the song's score, creating the score when the song has none yet. */
+    private fun withTempo(song: Song, tempo: TempoEdit?): Song {
+        if (tempo == null) return song
+        val score = (repo.score(song.scoreId) ?: Score())
+            .withTempo(tempo.bpm.coerceIn(Score.MIN_BPM, Score.MAX_BPM))
+            .withMeter(tempo.numerator, tempo.denominator)
+        repo.saveScore(score)
+        return song.copy(scoreId = score.id)
     }
 
     /** Adds copies of library songs, so concert-specific edits don't change other setlists. */
@@ -109,7 +153,7 @@ class MainViewModel(
 
     // --- library ---
 
-    fun saveLibrarySong(song: Song) = repo.saveLibrarySong(song)
+    fun saveLibrarySong(song: Song, tempo: TempoEdit? = null) = repo.saveLibrarySong(withTempo(song, tempo))
     fun deleteLibrarySong(songId: String) = repo.deleteLibrarySong(songId)
 
     fun deleteSong(id: String, songId: String) = change(id) { s ->
@@ -137,15 +181,91 @@ class MainViewModel(
 
     // --- performance ---
 
-    fun next(count: Int) { if (performIndex < count - 1) performIndex++ }
-    fun previous() { if (performIndex > 0) performIndex-- }
-    fun jumpTo(i: Int) { performIndex = i }
+    fun next(count: Int) { if (performIndex < count - 1) moveTo(performIndex + 1) }
+    fun previous() { if (performIndex > 0) moveTo(performIndex - 1) }
+    fun jumpTo(i: Int) = moveTo(i)
+
+    private fun moveTo(i: Int) {
+        stopMetronome()
+        performBpm = null
+        performIndex = i
+    }
+
+    // --- metronome ---
+
+    /** Tempo changed with ± during the concert; not saved unless adopted. */
+    var performBpm by mutableStateOf<Double?>(null)
+        private set
+    var metronomeOn by mutableStateOf(false)
+        private set
+    var metronomePosition by mutableStateOf<MetronomePosition?>(null)
+        private set
+    private var positionPoller: Job? = null
+
+    fun tempoFor(song: Song?): TempoEdit {
+        val base = TempoEdit.of(score(song)) ?: TempoEdit.DEFAULT
+        return performBpm?.let { base.copy(bpm = it) } ?: base
+    }
+
+    fun hasOwnTempo(song: Song?) = score(song) != null && performBpm == null
+
+    fun transportFor(song: Song?): TransportConfig {
+        val t = tempoFor(song)
+        return TransportConfig(t.bpm, t.numerator, t.denominator, settings.subdivision, settings.countInBars)
+    }
+
+    fun toggleMetronome(song: Song?) = if (metronomeOn) stopMetronome() else startMetronome(song)
+
+    fun startMetronome(song: Song?) {
+        audio.setClickVolume(settings.clickVolume)
+        audio.setTransport(transportFor(song))
+        audio.startMetronome()
+        metronomeOn = true
+        positionPoller?.cancel()
+        positionPoller = viewModelScope.launch {
+            val numerator = transportFor(song).numerator
+            while (isActive) {
+                metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, numerator) }
+                delay(16)
+            }
+        }
+    }
+
+    fun stopMetronome() {
+        if (!metronomeOn && positionPoller == null) return
+        audio.stopMetronome()
+        positionPoller?.cancel()
+        positionPoller = null
+        metronomeOn = false
+        metronomePosition = null
+    }
+
+    /** ± during the concert; takes effect on the next beat while running. */
+    fun nudgeTempo(song: Song?, delta: Double) {
+        val bpm = (tempoFor(song).bpm + delta).coerceIn(Score.MIN_BPM, Score.MAX_BPM)
+        performBpm = bpm
+        if (metronomeOn) audio.setTransport(transportFor(song))
+    }
+
+    /** Saves the nudged tempo into the song's score (shared with the library). */
+    fun adoptTempo(setlistId: String, song: Song) {
+        val bpm = performBpm ?: return
+        saveSong(setlistId, song, tempoFor(song).copy(bpm = bpm))
+        performBpm = null
+    }
     fun screenOff() { blackout = true }
     fun screenOn() { blackout = false }
 
     fun updateSettings(transform: (PerformSettings) -> PerformSettings) {
         settings = transform(settings)
         settingsStore.save(settings)
+        audio.setClickVolume(settings.clickVolume)
+    }
+
+    /** Metronome settings changed while it runs are applied immediately. */
+    fun updateMetronomeSettings(song: Song?, transform: (PerformSettings) -> PerformSettings) {
+        updateSettings(transform)
+        if (metronomeOn) audio.setTransport(transportFor(song))
     }
 
     fun changeFontSize(delta: Float) = updateSettings {

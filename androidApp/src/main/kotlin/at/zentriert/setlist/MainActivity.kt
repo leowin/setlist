@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val container = (application as SetlistApp).container
-                return MainViewModel(container.repository, container.settingsStore) as T
+                return MainViewModel(container.repository, container.settingsStore, container.audio) as T
             }
         }
     }

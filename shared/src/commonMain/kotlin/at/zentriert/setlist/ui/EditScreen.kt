@@ -47,13 +47,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import at.zentriert.setlist.MainViewModel
+import at.zentriert.setlist.Score
 import at.zentriert.setlist.Setlist
 import at.zentriert.setlist.Song
 import at.zentriert.setlist.rememberShareText
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun EditScreen(vm: MainViewModel, setlist: Setlist, library: List<Song>) {
+fun EditScreen(vm: MainViewModel, setlist: Setlist, library: List<Song>, scores: Map<String, Score>) {
     val share = rememberShareText()
     var editing by remember { mutableStateOf<Song?>(null) }
     var renaming by remember { mutableStateOf(false) }
@@ -100,6 +101,9 @@ fun EditScreen(vm: MainViewModel, setlist: Setlist, library: List<Song>) {
                         )
                         Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
                             Text(song.title, style = MaterialTheme.typography.titleMedium)
+                            scores[song.scoreId]?.let {
+                                Text("♩ ${it.summary}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            }
                             if (song.notes.isNotBlank()) {
                                 Text(
                                     song.notes,
@@ -142,11 +146,12 @@ fun EditScreen(vm: MainViewModel, setlist: Setlist, library: List<Song>) {
         val index = setlist.songs.indexOfFirst { it.id == song.id }
         SongDialog(
             song = song,
+            score = scores[song.scoreId],
             isNew = index < 0,
             canMerge = index in 0 until setlist.songs.lastIndex,
-            onSave = { vm.saveSong(setlist.id, it); editing = null },
+            onSave = { s, tempo -> vm.saveSong(setlist.id, s, tempo); editing = null },
             onDelete = { vm.deleteSong(setlist.id, song.id); editing = null },
-            onMerge = { vm.saveSong(setlist.id, it); vm.mergeWithNext(setlist.id, song.id); editing = null },
+            onMerge = { s, tempo -> vm.saveSong(setlist.id, s, tempo); vm.mergeWithNext(setlist.id, song.id); editing = null },
             onDismiss = { editing = null },
         )
     }

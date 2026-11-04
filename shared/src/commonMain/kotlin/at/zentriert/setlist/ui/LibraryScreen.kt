@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import at.zentriert.setlist.MainViewModel
+import at.zentriert.setlist.Score
 import at.zentriert.setlist.Song
 
 private fun List<Song>.search(query: String): List<Song> {
@@ -62,7 +63,7 @@ private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Mod
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun LibraryScreen(vm: MainViewModel, library: List<Song>) {
+fun LibraryScreen(vm: MainViewModel, library: List<Song>, scores: Map<String, Score>) {
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<Song?>(null) }
 
@@ -98,6 +99,9 @@ fun LibraryScreen(vm: MainViewModel, library: List<Song>) {
                     Card(onClick = { editing = song }, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text(song.title, style = MaterialTheme.typography.titleMedium)
+                            scores[song.scoreId]?.let {
+                                Text("♩ ${it.summary}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            }
                             if (song.notes.isNotBlank()) {
                                 Text(
                                     song.notes,
@@ -117,11 +121,12 @@ fun LibraryScreen(vm: MainViewModel, library: List<Song>) {
     editing?.let { song ->
         SongDialog(
             song = song,
+            score = scores[song.scoreId],
             isNew = library.none { it.id == song.id },
             canMerge = false,
-            onSave = { vm.saveLibrarySong(it); editing = null },
+            onSave = { s, tempo -> vm.saveLibrarySong(s, tempo); editing = null },
             onDelete = { vm.deleteLibrarySong(song.id); editing = null },
-            onMerge = {},
+            onMerge = { _, _ -> },
             onDismiss = { editing = null },
         )
     }

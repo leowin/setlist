@@ -1,0 +1,6 @@
+# ninja log v5
+0	566	1793809936811567717	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	d4c8f00ee2b9a78a
+567	591	1793809936835567716	libaudiocore.a	e59b867f191ff9fc
+13	938	1793809937183567708	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	f077e893ea9bfc6f
+5	1146	1793809937387567704	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f9823c9e7d41698d
+1146	1180	1793809937427567703	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/x86_64/libsetlistaudio.so	79415bcf58b34052

@@ -1,0 +1,4 @@
+/home/user/setlist/shared/.cxx/Debug/p5r1or49/x86_64/CMakeFiles/audiocore.dir
+/home/user/setlist/shared/.cxx/Debug/p5r1or49/x86_64/CMakeFiles/setlistaudio.dir
+/home/user/setlist/shared/.cxx/Debug/p5r1or49/x86_64/CMakeFiles/edit_cache.dir
+/home/user/setlist/shared/.cxx/Debug/p5r1or49/x86_64/CMakeFiles/rebuild_cache.dir

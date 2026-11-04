@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a",
+  "command": "/opt/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/opt/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -I/home/user/setlist/audio/src -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -O2 -ffast-math -fno-exceptions -std=gnu++17 -o CMakeFiles/audiocore.dir/src/Metronome.cpp.o -c /home/user/setlist/audio/src/Metronome.cpp",
+  "file": "/home/user/setlist/audio/src/Metronome.cpp"
+},
+{
+  "directory": "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a",
+  "command": "/opt/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/opt/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dsetlistaudio_EXPORTS -I/home/user/setlist/audio/src -isystem /root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -O2 -std=gnu++17 -o CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o -c /home/user/setlist/audio/src/android/OboeEngine.cpp",
+  "file": "/home/user/setlist/audio/src/android/OboeEngine.cpp"
+},
+{
+  "directory": "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a",
+  "command": "/opt/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/opt/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dsetlistaudio_EXPORTS -I/home/user/setlist/audio/src -isystem /root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -O2 -std=gnu++17 -o CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o -c /home/user/setlist/audio/src/android/jni.cpp",
+  "file": "/home/user/setlist/audio/src/android/jni.cpp"
+}
+]

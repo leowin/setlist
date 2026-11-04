@@ -11,6 +11,6 @@ import platform.UIKit.UIViewController
 @Suppress("unused", "FunctionName")
 fun MainViewController(): UIViewController = ComposeUIViewController {
     val container = remember { AppContainer(Path(documentsDirectory()), UserDefaultsStore()) }
-    val vm = viewModel { MainViewModel(container.repository, container.settingsStore) }
+    val vm = viewModel { MainViewModel(container.repository, container.settingsStore, container.audio) }
     App(vm)
 }

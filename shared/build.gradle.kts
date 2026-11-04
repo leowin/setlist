@@ -42,6 +42,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            implementation(libs.oboe)
         }
     }
 }
@@ -49,7 +50,24 @@ kotlin {
 android {
     namespace = "at.zentriert.setlist.shared"
     compileSdk = 35
-    defaultConfig { minSdk = 26 }
+    ndkVersion = "27.2.12479018"
+    defaultConfig {
+        minSdk = 26
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_shared" } }
+    }
+    // Native audio engine (audio/): metronome, click synth, Oboe output.
+    externalNativeBuild {
+        cmake {
+            path = file("../audio/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+    buildFeatures { prefab = true }
+    lint {
+        // The lint checks shipped with the multiplatform lifecycle 2.9 artifacts crash on AGP 8.7's lint.
+        disable += "NullSafeMutableLiveData"
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

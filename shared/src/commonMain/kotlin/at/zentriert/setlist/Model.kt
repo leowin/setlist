@@ -12,6 +12,8 @@ data class Song(
     val id: String = newId(),
     val title: String,
     val notes: String = "",
+    /** Tempo, meter and notes live in a [Score] shared by all copies of this song. */
+    val scoreId: String? = null,
 )
 
 @Serializable

@@ -19,6 +19,12 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
 - **Konzertansicht:** aktuelles Lied groß, darunter (Querformat: daneben) das nächste bzw. die
   nächsten zwei Lieder mit Anweisungen. Große *Zurück*/*Weiter*-Buttons, Schriftgröße einstellbar,
   Antippen der Position springt zu einem beliebigen Lied.
+- **Tempo & Taktart** pro Lied (BPM tippen, ± oder Tap-Tempo; 2/4 … 12/8). Gespeichert in einer
+  Partitur (`Score`), die alle Kopien eines Lieds in Setlists und Bibliothek teilen.
+- **Metronom** in der Konzertansicht: Start/Stop, Tempo mit ± anpassen (nur für dieses Konzert, oder
+  „Übernehmen“ speichert es), Vorzähler, Unterteilung (Achtel/Triolen/16tel), Lautstärke. Der Hintergrund
+  des aktuellen Lieds zeigt die Schläge als große Spalten – die laufende leuchtet, die 1 heller –, damit
+  man den Takt auch von weit weg sieht. Audio läuft nativ (C++ + Oboe) und ist sample-genau.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓, Leertaste/Enter und die Lautstärketasten blättern
   (Bluetooth-Page-Turner funktionieren damit in der Regel direkt).
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
@@ -32,6 +38,8 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
   Bildschirm wach halten, Teilen und Einstellungen in `androidMain` / `iosMain`.
 - `androidApp/` – Android-Einstieg (Activity, Manifest, Icon, Tasten/Pedal, „Senden“-Import).
 - `iosApp/` – iOS-Einstieg (Swift + XcodeGen-Spec), siehe `iosApp/README.md`.
+- `audio/` – C++-Audio-Kern (Metronom, Klick-Synth) mit Oboe-Backend für Android; iOS-Backend folgt.
+  Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
 
 ## Bauen
 

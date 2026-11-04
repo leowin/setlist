@@ -24,8 +24,18 @@ data class AppData(
 class SetlistRepository(private val dir: Path) {
     private val file = Path(dir, "data.json")
     private val json = Json { ignoreUnknownKeys = true }
+    private val scoresDir = Path(dir, "scores")
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data.asStateFlow()
+    private val _scores = MutableStateFlow(loadScores())
+    val scores: StateFlow<Map<String, Score>> = _scores.asStateFlow()
+
+    fun score(id: String?): Score? = id?.let { _scores.value[it] }
+
+    fun saveScore(score: Score) {
+        _scores.update { it + (score.id to score) }
+        writeJson(Path(scoresDir, "${score.id}.json"), score)
+    }
 
     fun get(id: String): Setlist? = _data.value.setlists.firstOrNull { it.id == id }
 
@@ -53,8 +63,13 @@ class SetlistRepository(private val dir: Path) {
             val existing = library.firstOrNull { libraryKey(it.title) == key }
             library = when {
                 existing == null -> library + song.copy(id = newId())
-                song.notes.isBlank() || song.notes == existing.notes -> library
-                else -> library.upsertBy(existing.copy(notes = song.notes)) { it.id == existing.id }
+                else -> {
+                    val merged = existing.copy(
+                        notes = if (song.notes.isBlank()) existing.notes else song.notes,
+                        scoreId = song.scoreId ?: existing.scoreId,
+                    )
+                    if (merged == existing) library else library.upsertBy(merged) { it.id == existing.id }
+                }
             }
         }
         data.copy(library = library)
@@ -83,15 +98,32 @@ class SetlistRepository(private val dir: Path) {
         }
     }
 
-    /** Writes to a temp file first, so a crash mid-write never leaves a truncated data file. */
-    private fun save(data: AppData) {
+    private fun save(data: AppData) = writeJson(file, data)
+
+    private fun loadScores(): Map<String, Score> {
+        if (!SystemFileSystem.exists(scoresDir)) return emptyMap()
+        return SystemFileSystem.list(scoresDir)
+            .filter { it.name.endsWith(".json") }
+            .mapNotNull { path ->
+                try {
+                    json.decodeFromString<Score>(SystemFileSystem.source(path).buffered().use { it.readString() })
+                } catch (e: Exception) {
+                    println("$TAG: could not read ${path.name}: $e")
+                    null
+                }
+            }
+            .associateBy { it.id }
+    }
+
+    /** Writes to a temp file first, so a crash mid-write never leaves a truncated file. */
+    private inline fun <reified T> writeJson(target: Path, value: T) {
         try {
-            SystemFileSystem.createDirectories(dir)
-            val tmp = Path(dir, "data.json.tmp")
-            SystemFileSystem.sink(tmp).buffered().use { it.writeString(json.encodeToString(data)) }
-            SystemFileSystem.atomicMove(tmp, file)
+            target.parent?.let { SystemFileSystem.createDirectories(it) }
+            val tmp = Path(target.parent ?: dir, "${target.name}.tmp")
+            SystemFileSystem.sink(tmp).buffered().use { it.writeString(json.encodeToString(value)) }
+            SystemFileSystem.atomicMove(tmp, target)
         } catch (e: Exception) {
-            println("$TAG: could not save data: $e")
+            println("$TAG: could not save ${target.name}: $e")
         }
     }
 

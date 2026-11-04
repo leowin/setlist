@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.22)
+project(setlistaudio CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Platform-independent core: metronome, click synth, event sequencer.
+add_library(audiocore STATIC src/Metronome.cpp)
+target_include_directories(audiocore PUBLIC src)
+target_compile_options(audiocore PRIVATE -O2 -ffast-math -fno-exceptions)
+
+if(ANDROID)
+    find_package(oboe REQUIRED CONFIG)
+    add_library(setlistaudio SHARED src/android/OboeEngine.cpp src/android/jni.cpp)
+    target_link_libraries(setlistaudio PRIVATE audiocore oboe::oboe log)
+    target_compile_options(setlistaudio PRIVATE -O2)
+else()
+    enable_testing()
+    add_executable(transport_test tests/transport_test.cpp)
+    target_link_libraries(transport_test PRIVATE audiocore)
+    add_test(NAME transport_test COMMAND transport_test)
+endif()
