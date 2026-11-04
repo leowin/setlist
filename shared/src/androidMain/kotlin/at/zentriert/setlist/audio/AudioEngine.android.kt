@@ -51,6 +51,21 @@ class AndroidAudioEngine : AudioEngine {
         NativeAudio.play(handle, startFrame, withMetronome)
     }
 
+    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean) {
+        ensureStream()
+        val frame0 = NativeAudio.currentFrame(handle)
+        val sr = NativeAudio.sampleRate(handle)
+        val t0 = NativeAudio.nanosForFrame(handle, frame0)
+        val startFrame = if (t0 > 0) {
+            // The stream timestamp tells when frame0 reaches the speaker → exact frame for atNanos.
+            frame0 + (atNanos - t0) * sr / 1_000_000_000L
+        } else {
+            val lead = (atNanos - System.nanoTime() - NativeAudio.outputLatencyNanos(handle)) / 1e9
+            frame0 + (lead.coerceAtLeast(0.0) * sr).toLong()
+        }
+        if (metronomeOnly) NativeAudio.metronomeStartAt(handle, startFrame) else NativeAudio.play(handle, startFrame, withMetronome)
+    }
+
     override fun stopPlayback() = NativeAudio.stopPlayback(handle)
     override val playing: Boolean get() = NativeAudio.isPlaying(handle)
     override fun positionSeconds(): Double? = NativeAudio.positionSeconds(handle).takeIf { it >= 0 }

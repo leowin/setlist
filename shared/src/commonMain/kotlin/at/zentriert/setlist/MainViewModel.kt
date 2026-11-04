@@ -11,6 +11,12 @@ import at.zentriert.setlist.audio.AudioEngine
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.audio.TransportConfig
+import at.zentriert.setlist.band.BandEvent
+import at.zentriert.setlist.band.BandSession
+import at.zentriert.setlist.band.Msg
+import at.zentriert.setlist.band.Role
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import at.zentriert.setlist.edit.LatencyCalibration
 import at.zentriert.setlist.edit.LoopBars
 import at.zentriert.setlist.edit.NoteValue
@@ -38,6 +44,7 @@ sealed interface Screen {
     class MidiImport(val state: MidiImportState) : Screen
     data class Editor(val setlistId: String?, val songId: String, val instrument: Instrument) : Screen
     data class Notation(val setlistId: String?, val songId: String) : Screen
+    data object Band : Screen
 }
 
 /** Where an imported score should go. */
@@ -69,6 +76,8 @@ class ImportState(text: String, name: String) {
 /** Keys a stage controller may send: arrow/page keys of Bluetooth page turners, volume buttons … */
 enum class PerformKey { NEXT, PREVIOUS }
 
+private const val START_LEAD_NANOS = 1_500_000_000L
+
 /** Tempo and meter as edited in the song dialog. */
 data class TempoEdit(val bpm: Double, val numerator: Int, val denominator: Int) {
     val label get() = "${bpm.toBpmText()} · $numerator/$denominator"
@@ -83,6 +92,7 @@ class MainViewModel(
     private val repo: SetlistRepository,
     private val settingsStore: SettingsStore,
     private val audio: AudioEngine,
+    private val discovery: Discovery? = null,
 ) : ViewModel() {
     val scores = repo.scores
     val data = repo.data
@@ -113,6 +123,7 @@ class MainViewModel(
     // --- navigation ---
 
     fun goHome() { leavePerformance(); screen = Screen.Home }
+    fun openBand() { leavePerformance(); screen = Screen.Band }
     fun openLibrary() { screen = Screen.Library }
     fun edit(id: String) { leavePerformance(); screen = Screen.Edit(id) }
 
@@ -121,6 +132,10 @@ class MainViewModel(
         blackout = false
         performBpm = null
         screen = Screen.Perform(id)
+        if (bandRole == Role.HOST) {
+            shareSetlist(id)
+            band?.broadcast(Msg.Navigate(startAt))
+        }
     }
 
     private fun leavePerformance() {
@@ -239,10 +254,12 @@ class MainViewModel(
     fun previous() { if (performIndex > 0) moveTo(performIndex - 1) }
     fun jumpTo(i: Int) = moveTo(i)
 
-    private fun moveTo(i: Int) {
+    private fun moveTo(i: Int, fromHost: Boolean = false) {
         stopMetronome()
+        stopPlayback()
         performBpm = null
         performIndex = i
+        if (bandRole == Role.HOST && !fromHost) band?.broadcast(Msg.Navigate(i))
     }
 
     // --- metronome ---
@@ -279,7 +296,12 @@ class MainViewModel(
     fun startMetronome(song: Song?) {
         audio.setClickVolume(settings.clickVolume)
         applyTransport(transportFor(song))
-        audio.startMetronome()
+        if (bandRole == Role.HOST) {
+            val t = transportFor(song)
+            val at = monotonicNanos() + START_LEAD_NANOS
+            band?.broadcast(Msg.Start(at, null, 0, t.bpm, t.numerator, t.denominator, t.subdivision, t.countInBars, true))
+            audio.playAt(at, withMetronome = true, metronomeOnly = true)
+        } else audio.startMetronome()
         metronomeOn = true
         positionPoller?.cancel()
         positionPoller = viewModelScope.launch {
@@ -292,6 +314,7 @@ class MainViewModel(
 
     fun stopMetronome() {
         if (!metronomeOn && positionPoller == null) return
+        if (bandRole == Role.HOST && metronomeOn) band?.broadcast(Msg.Stop(monotonicNanos()))
         audio.stopMetronome()
         positionPoller?.cancel()
         positionPoller = null
@@ -364,7 +387,7 @@ class MainViewModel(
     fun setMixMode(score: Score?, mode: MixMode) { updateSettings { it.copy(mixMode = mode) }; score?.let(::applyMix) }
     fun setMyInstrument(score: Score?, instrument: Instrument?) { updateSettings { it.copy(myInstrument = instrument) }; score?.let(::applyMix) }
 
-    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true, loop: LoopBars? = null) {
+    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true, loop: LoopBars? = null, atNanos: Long? = null) {
         stopPlayback()
         stopMetronome()
         score.parts.forEachIndexed { i, part ->
@@ -383,7 +406,7 @@ class MainViewModel(
         } else audio.setLoop(0.0, 0.0)
         applyTransport(transport)
         audio.setClickVolume(settings.clickVolume)
-        audio.play(leadSeconds = 0.15, withMetronome = withMetronome)
+        if (atNanos != null) audio.playAt(atNanos, withMetronome) else audio.play(leadSeconds = 0.15, withMetronome = withMetronome)
         playbackScore = score; playbackFrom = fromTick; playbackOffset = offset
         playing = true
         metronomeOn = withMetronome
@@ -413,8 +436,20 @@ class MainViewModel(
 
     fun stopPlayback() {
         if (!playing) return
+        if (bandRole == Role.HOST && screen is Screen.Perform) band?.broadcast(Msg.Stop(monotonicNanos()))
         audio.stopPlayback()
         finishPlayback()
+    }
+
+    /** Concert view: play the current song's notes for everyone (host) or just here. */
+    fun performPlay(song: Song?) {
+        val score = score(song) ?: return
+        if (score.parts.none { it.notes.isNotEmpty() }) return startMetronome(song)
+        if (bandRole == Role.HOST) {
+            val at = monotonicNanos() + START_LEAD_NANOS
+            band?.broadcast(Msg.Start(at, score.id, 0, score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, settings.countInBars, true))
+            playScore(score, 0, withMetronome = true, atNanos = at)
+        } else playScore(score, 0, withMetronome = true)
     }
 
     /** Live playing (pads/keys); while recording or in step input the press also becomes a note. */
@@ -643,6 +678,160 @@ class MainViewModel(
                 openNotes(null, stored.id)
             }
         }
+    }
+
+    // --- band (WLAN sync) ---
+
+    private var band: BandSession? = null
+    var bandRole by mutableStateOf<Role?>(null)
+        private set
+    var bandStatus by mutableStateOf("")
+        private set
+    var bandPeers by mutableStateOf<List<String>>(emptyList())
+        private set
+    val bandHosts = mutableStateMapOf<String, Pair<String, Int>>()  // name -> (host, port)
+    var clockInfo by mutableStateOf<BandEvent.Clock?>(null)
+        private set
+    var syncTest by mutableStateOf(false)
+        private set
+    private var bandSetlistId: String? = null
+
+    fun bandName(): String = settings.bandName.ifBlank { "Setlist" }
+
+    fun startDiscovery() {
+        bandHosts.clear()
+        discovery?.discover(
+            onFound = { name, host, port -> viewModelScope.launch { bandHosts[name] = host to port } },
+            onLost = { name -> viewModelScope.launch { bandHosts.remove(name) } },
+        )
+    }
+    fun stopDiscovery() = discovery?.stopDiscovery()
+
+    fun hostBand() {
+        leaveBand()
+        val session = BandSession(bandName(), ::onBandEvent)
+        band = session
+        bandRole = Role.HOST
+        bandStatus = "Starte …"
+        session.host()
+        discovery?.advertise(bandName(), at.zentriert.setlist.band.DEFAULT_PORT)
+        (screen as? Screen.Perform)?.let { shareSetlist(it.setlistId) }
+    }
+
+    fun joinBand(host: String, port: Int = at.zentriert.setlist.band.DEFAULT_PORT) {
+        leaveBand()
+        val session = BandSession(bandName(), ::onBandEvent)
+        band = session
+        bandRole = Role.MEMBER
+        session.join(host, port, settings.myInstrument)
+    }
+
+    fun leaveBand() {
+        if (syncTest) stopSyncTest()
+        discovery?.stopAdvertising()
+        band?.close()
+        band = null
+        bandRole = null
+        bandPeers = emptyList()
+        bandStatus = ""
+        clockInfo = null
+    }
+
+    private fun shareSetlist(setlistId: String) {
+        val setlist = repo.get(setlistId) ?: return
+        val scores = setlist.songs.mapNotNull { s -> repo.score(s.scoreId)?.let { it.id to it } }.toMap()
+        band?.broadcast(Msg.SetlistSync(setlist, scores))
+    }
+
+    /** Events arrive on the session's thread; state changes happen on Main. */
+    private fun onBandEvent(event: BandEvent) {
+        viewModelScope.launch(Dispatchers.Main) {
+            when (event) {
+                is BandEvent.Status -> bandStatus = event.text
+                is BandEvent.Peers -> bandPeers = event.names
+                is BandEvent.Clock -> clockInfo = event
+                is BandEvent.Ended -> { bandStatus = event.reason; if (bandRole == Role.MEMBER) { band = null; bandRole = null; clockInfo = null } }
+                is BandEvent.Message -> handleBandMessage(event.msg)
+            }
+        }
+    }
+
+    private fun hostToLocal(hostNanos: Long): Long =
+        (band?.clock?.toLocal(hostNanos) ?: hostNanos) + settings.syncOffsetMs * 1_000_000L
+
+    private fun handleBandMessage(msg: Msg) {
+        when (msg) {
+            is Msg.SetlistSync -> {
+                msg.scores.values.forEach { repo.saveScore(it) }
+                repo.upsert(msg.setlist)
+                bandSetlistId = msg.setlist.id
+                if (screen !is Screen.Band || true) {
+                    performIndex = 0; blackout = false; performBpm = null
+                    screen = Screen.Perform(msg.setlist.id)
+                }
+            }
+            is Msg.Navigate -> { if (screen !is Screen.Perform) bandSetlistId?.let { screen = Screen.Perform(it) }; moveTo(msg.index, fromHost = true) }
+            is Msg.Start -> {
+                val at = hostToLocal(msg.atHostNanos)
+                val score = msg.scoreId?.let { repo.score(it) }
+                if (score != null) {
+                    playScore(score, msg.fromTick, msg.withMetronome, atNanos = at)
+                } else {
+                    stopPlayback(); stopMetronome()
+                    audio.setClickVolume(settings.clickVolume)
+                    applyTransport(TransportConfig(msg.bpm, msg.numerator, msg.denominator, msg.subdivision, msg.countInBars))
+                    audio.playAt(at, withMetronome = true, metronomeOnly = true)
+                    metronomeOn = true
+                    positionPoller?.cancel()
+                    positionPoller = viewModelScope.launch {
+                        while (isActive) {
+                            metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, metronomeNumerator) }
+                            delay(16)
+                        }
+                    }
+                }
+            }
+            is Msg.Stop -> { audio.stopPlayback(); finishPlayback(); audio.stopMetronome(); positionPoller?.cancel(); positionPoller = null; metronomeOn = false; metronomePosition = null }
+            is Msg.SyncTest -> if (msg.on) runSyncTest() else stopSyncTest()
+            else -> {}
+        }
+    }
+
+    /** Everyone clicks and flashes on the host's whole seconds – a quick check by ear and eye. */
+    fun toggleSyncTest() {
+        if (syncTest) { if (bandRole == Role.HOST) band?.broadcast(Msg.SyncTest(false)); stopSyncTest() }
+        else { if (bandRole == Role.HOST) band?.broadcast(Msg.SyncTest(true)); runSyncTest() }
+    }
+
+    private fun runSyncTest() {
+        stopPlayback(); stopMetronome()
+        // Start on the next whole host second + 2 s; 60 bpm = one click per second from then on.
+        val hostNow = band?.clock?.toHost(monotonicNanos()) ?: monotonicNanos()
+        val hostStart = (hostNow / 1_000_000_000L + 2) * 1_000_000_000L
+        applyTransport(TransportConfig(60.0, 4, 4, 1, 0))
+        audio.setClickVolume(settings.clickVolume)
+        audio.playAt(hostToLocal(hostStart), withMetronome = true, metronomeOnly = true)
+        syncTest = true
+        metronomeOn = true
+        positionPoller?.cancel()
+        positionPoller = viewModelScope.launch {
+            while (isActive) {
+                metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, 4) }
+                delay(16)
+            }
+        }
+    }
+
+    private fun stopSyncTest() {
+        syncTest = false
+        audio.stopMetronome()
+        positionPoller?.cancel(); positionPoller = null
+        metronomeOn = false; metronomePosition = null
+    }
+
+    override fun onCleared() {
+        leaveBand()
+        stopDiscovery()
     }
 
     fun updateSettings(transform: (PerformSettings) -> PerformSettings) {

@@ -13,6 +13,7 @@ internal object NativeAudio {
     external fun setTransport(handle: Long, bpm: Double, numerator: Int, denominator: Int, subdivision: Int, countInBars: Int)
     external fun setClickVolume(handle: Long, volume: Float)
     external fun metronomeStart(handle: Long)
+    external fun metronomeStartAt(handle: Long, frame: Long)
     external fun metronomeStop(handle: Long)
     external fun metronomeRunning(handle: Long): Boolean
     external fun positionBeats(handle: Long): Double

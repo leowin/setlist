@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -49,6 +50,11 @@ fun HomeScreen(vm: MainViewModel, setlists: List<Setlist>) {
             TopAppBar(
                 title = { Text("Setlists") },
                 actions = {
+                    TextButton(onClick = vm::openBand) {
+                        Icon(Icons.Default.Groups, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (vm.bandRole != null) "Band ●" else "Band")
+                    }
                     TextButton(onClick = vm::openLibrary) {
                         Icon(Icons.Default.LibraryMusic, null)
                         Spacer(Modifier.width(8.dp))

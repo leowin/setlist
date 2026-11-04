@@ -35,6 +35,7 @@ kotlin {
             implementation(libs.lifecycle.runtime.compose)
             implementation(libs.kotlinx.serialization.json)
             api(libs.kotlinx.io.core)
+            implementation(libs.ktor.network)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

@@ -18,6 +18,8 @@ import java.util.Date
 
 actual fun currentTimeMillis(): Long = System.currentTimeMillis()
 
+actual fun monotonicNanos(): Long = System.nanoTime()
+
 actual fun todayLabel(): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date())
 
 class SharedPreferencesStore(private val prefs: SharedPreferences) : KeyValueStore {
@@ -27,6 +29,8 @@ class SharedPreferencesStore(private val prefs: SharedPreferences) : KeyValueSto
     override fun putFloat(key: String, value: Float) = prefs.edit().putFloat(key, value).apply()
     override fun putInt(key: String, value: Int) = prefs.edit().putInt(key, value).apply()
     override fun putBoolean(key: String, value: Boolean) = prefs.edit().putBoolean(key, value).apply()
+    override fun getString(key: String, default: String) = prefs.getString(key, default) ?: default
+    override fun putString(key: String, value: String) = prefs.edit().putString(key, value).apply()
 }
 
 tailrec fun Context.findActivity(): Activity? = when (this) {

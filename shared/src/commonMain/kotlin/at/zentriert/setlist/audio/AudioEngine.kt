@@ -26,6 +26,8 @@ interface AudioEngine {
     fun setLoop(startSeconds: Double, endSeconds: Double)
     /** Starts the sequence [leadSeconds] from now, optionally with the metronome locked to it. */
     fun play(leadSeconds: Double, withMetronome: Boolean)
+    /** Starts the sequence (or, with [metronomeOnly], just the metronome) when the local monotonic clock reaches [atNanos]. */
+    fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean = false)
     fun stopPlayback()
     val playing: Boolean
     /** Seconds since playback start, or null when stopped. */
@@ -69,6 +71,10 @@ class SilentAudioEngine : AudioEngine {
     override fun play(leadSeconds: Double, withMetronome: Boolean) {
         playStartedAt = currentTimeMillis() + (leadSeconds * 1000).toLong()
         if (withMetronome) metronomeStartedAt = playStartedAt
+    }
+    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean) {
+        val lead = (atNanos - at.zentriert.setlist.monotonicNanos()) / 1e9
+        if (metronomeOnly) metronomeStartedAt = currentTimeMillis() + (lead * 1000).toLong() else play(lead, withMetronome)
     }
     override fun stopPlayback() { playStartedAt = null; metronomeStartedAt = null }
     override val playing: Boolean get() = positionSeconds() != null

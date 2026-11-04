@@ -29,7 +29,7 @@
       "artifactName": "setlistaudio",
       "output": "/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/armeabi-v7a/libsetlistaudio.so",
       "runtimeFiles": [
-        "/root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so"
+        "/root/.gradle/caches/8.14.3/transforms/dcffea00f04bca13fb1791be64ef4ab8/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so"
       ]
     }
   },

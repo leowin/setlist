@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.Screen
+import at.zentriert.setlist.ui.band.BandScreen
 import at.zentriert.setlist.ui.editor.EditorScreen
 import at.zentriert.setlist.ui.notation.NotationScreen
 import at.zentriert.setlist.ui.notes.MidiImportScreen
@@ -24,6 +25,7 @@ fun App(vm: MainViewModel) {
                 Screen.Home -> HomeScreen(vm, setlists)
                 is Screen.Import -> ImportScreen(vm, screen.state)
                 Screen.Library -> LibraryScreen(vm, data.library, scores)
+                Screen.Band -> BandScreen(vm)
                 is Screen.Edit -> setlists.firstOrNull { it.id == screen.setlistId }
                     ?.let { EditScreen(vm, it, data.library, scores) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }

@@ -44,6 +44,13 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Schlagzeugnotation. Beim Abspielen folgt ein Cursor. In der Konzertansicht schaltet ♫ zwischen den
   Text-Anweisungen und den Noten des eigenen Instruments um. Rhythmen werden auf 1/32 quantisiert,
   längere Werte als gebundene Noten geschrieben; Triolen erscheinen vorerst als nächstliegende gerade Werte.
+- **Band-Sync im WLAN** („Band“ auf der Startseite): Ein Handy hostet, die anderen finden es per mDNS
+  (oder IP-Eingabe) und treten bei. Der Host verteilt seine Setlist samt Noten; Weiter/Zurück,
+  Metronom-Start und Abspielen folgen dem Host auf allen Handys **gleichzeitig**: Die Uhren werden per
+  UDP-Rundlauf (NTP-Prinzip, beste Messungen, Median, Drift-Regression) abgeglichen, der Start wird als
+  Host-Zeitpunkt gesendet und jedes Handy plant ihn sample-genau über die Zeitstempel seines
+  Audio-Streams. Eine einstellbare Startverzögerung gleicht z. B. Bluetooth-Kopfhörer aus, und der
+  Sync-Test lässt alle Handys jede Sekunde gemeinsam klicken und blinken.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale

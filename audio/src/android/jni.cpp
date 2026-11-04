@@ -48,6 +48,11 @@ Java_at_zentriert_setlist_audio_NativeAudio_metronomeStart(JNIEnv*, jobject, jlo
 }
 
 JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_metronomeStartAt(JNIEnv*, jobject, jlong h, jlong frame) {
+    engine(h)->engine.metronome.startAt(frame);
+}
+
+JNIEXPORT void JNICALL
 Java_at_zentriert_setlist_audio_NativeAudio_metronomeStop(JNIEnv*, jobject, jlong h) {
     engine(h)->engine.metronome.stop();
 }

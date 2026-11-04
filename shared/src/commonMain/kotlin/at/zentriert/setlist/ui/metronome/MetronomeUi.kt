@@ -118,6 +118,14 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
             }
         }
         IconButton(onClick = { vm.nudgeTempo(song, 1.0) }) { Icon(Icons.Default.Add, "Schneller", tint = DimColor) }
+        if (vm.score(song)?.parts?.any { it.notes.isNotEmpty() } == true) {
+            IconButton(onClick = { if (vm.playing) vm.stopPlayback() else vm.performPlay(song) }, enabled = vm.soundFontReady) {
+                Icon(if (vm.playing) Icons.Default.Stop else Icons.Default.PlayArrow, "Noten abspielen", tint = if (vm.playing) Amber else DimColor)
+            }
+        }
+        if (vm.bandRole != null) {
+            Text(if (vm.bandRole == at.zentriert.setlist.band.Role.HOST) "HOST" else "BAND", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
         Spacer(Modifier.weight(1f))
         if (vm.performBpm != null && song != null) {
             TextButton(onClick = { vm.adoptTempo(setlist.id, song) }) { Text("Übernehmen", color = Amber) }

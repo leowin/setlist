@@ -8,6 +8,7 @@ class SetlistApp : Application() {
         AppContainer(
             dataDir = Path(filesDir.absolutePath),
             store = SharedPreferencesStore(getSharedPreferences("settings", MODE_PRIVATE)),
+            discovery = NsdDiscovery(this),
         )
     }
 }

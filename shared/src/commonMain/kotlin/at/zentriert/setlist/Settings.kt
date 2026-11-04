@@ -25,6 +25,9 @@ data class PerformSettings(
     val notationScale: Float = 1.0f,
     /** Concert view shows the notes of my instrument instead of the text instructions. */
     val performNotation: Boolean = false,
+    /** Name shown to the band; extra delay applied to synced starts (e.g. for Bluetooth headphones). */
+    val bandName: String = "",
+    val syncOffsetMs: Int = 0,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -54,6 +57,8 @@ class SettingsStore(private val store: KeyValueStore) {
         notationView = store.getInt("notationView", 2),
         notationScale = store.getFloat("notationScale", 1.0f),
         performNotation = store.getBoolean("performNotation", false),
+        bandName = store.getString("bandName", ""),
+        syncOffsetMs = store.getInt("syncOffsetMs", 0),
     )
 
     fun save(s: PerformSettings) {
@@ -75,5 +80,7 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putInt("notationView", s.notationView)
         store.putFloat("notationScale", s.notationScale)
         store.putBoolean("performNotation", s.performNotation)
+        store.putString("bandName", s.bandName)
+        store.putInt("syncOffsetMs", s.syncOffsetMs)
     }
 }

@@ -48,7 +48,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "setlistaudio::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-setlistaudio-RelWithDebInfo-4b063dd5f4c2e5b0034c.json",
+					"jsonFile" : "target-setlistaudio-RelWithDebInfo-b4ec8000223351a0d6fb.json",
 					"name" : "setlistaudio",
 					"projectIndex" : 0
 				}
@@ -58,7 +58,7 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/x86_64",
+		"build" : "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a",
 		"source" : "/home/user/setlist/audio"
 	},
 	"version" : 

@@ -16,6 +16,9 @@ import platform.UIKit.UIScreen
 
 actual fun currentTimeMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+actual fun monotonicNanos(): Long = platform.posix.clock_gettime_nsec_np(platform.posix.CLOCK_MONOTONIC).toLong()
+
 actual fun todayLabel(): String =
     NSDateFormatter().apply { dateStyle = NSDateFormatterMediumStyle }.stringFromDate(NSDate())
 
@@ -31,6 +34,8 @@ class UserDefaultsStore(private val defaults: NSUserDefaults = NSUserDefaults.st
     override fun putFloat(key: String, value: Float) = defaults.setFloat(value, key)
     override fun putInt(key: String, value: Int) = defaults.setInteger(value.toLong(), key)
     override fun putBoolean(key: String, value: Boolean) = defaults.setBool(value, key)
+    override fun getString(key: String, default: String) = defaults.stringForKey(key) ?: default
+    override fun putString(key: String, value: String) = defaults.setObject(value, key)
 }
 
 @Composable

@@ -74,7 +74,7 @@
 				{
 					"backtrace" : 2,
 					"isSystem" : true,
-					"path" : "/root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/include"
+					"path" : "/root/.gradle/caches/8.14.3/transforms/dcffea00f04bca13fb1791be64ef4ab8/transformed/oboe-1.9.3/prefab/modules/oboe/include"
 				}
 			],
 			"language" : "CXX",
@@ -120,7 +120,7 @@
 			},
 			{
 				"backtrace" : 2,
-				"fragment" : "/root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.x86_64/liboboe.so",
+				"fragment" : "/root/.gradle/caches/8.14.3/transforms/dcffea00f04bca13fb1791be64ef4ab8/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.x86_64/liboboe.so",
 				"role" : "libraries"
 			},
 			{

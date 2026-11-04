@@ -1,10 +1,10 @@
 # ninja log v5
-903	931	1793813278130853711	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	7be641f5c47c05bb
-1075	1088	1793812370155699516	libaudiocore.a	22d54bf9f59111d7
-3	874	1793813278070853713	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	c5f20300746c6742
-6	1075	1793812370134874479	CMakeFiles/audiocore.dir/src/Synth.cpp.o	4e2cf5a9bd42306e
-3	903	1793813278098853712	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f94a60e364159da7
-4	430	1793812369490874494	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
-4	752	1793814312906830044	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	fb442b13da57562a
-3	852	1793814313002830041	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	af7d6993899ece68
 852	883	1793814313038830041	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	59f8e0b931ad8374
+1075	1088	1793812370155699516	libaudiocore.a	22d54bf9f59111d7
+4	752	1793814312906830044	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	fb442b13da57562a
+6	1075	1793812370134874479	CMakeFiles/audiocore.dir/src/Synth.cpp.o	4e2cf5a9bd42306e
+3	852	1793814313002830041	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	af7d6993899ece68
+4	430	1793812369490874494	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
+3	1452	1793815385930805501	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5c2d98d4020c9e97
+2	1472	1793815385958805500	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	8ab604ab8589524
+1472	1529	1793815386018805499	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	1b2eb22551d23ff9

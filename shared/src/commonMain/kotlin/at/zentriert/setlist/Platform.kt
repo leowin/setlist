@@ -17,6 +17,8 @@ interface KeyValueStore {
     fun putFloat(key: String, value: Float)
     fun putInt(key: String, value: Int)
     fun putBoolean(key: String, value: Boolean)
+    fun getString(key: String, default: String): String
+    fun putString(key: String, value: String)
 }
 
 /**
@@ -41,3 +43,14 @@ expect fun rememberFilePicker(onPicked: (bytes: ByteArray, name: String) -> Unit
  */
 @Composable
 expect fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: Modifier)
+
+/** Monotonic clock in nanoseconds (same clock the audio engine uses for its timestamps). */
+expect fun monotonicNanos(): Long
+
+/** Finds and announces band hosts on the local network (mDNS/Bonjour, service _setlist._tcp). */
+interface Discovery {
+    fun advertise(name: String, port: Int)
+    fun stopAdvertising()
+    fun discover(onFound: (name: String, host: String, port: Int) -> Unit, onLost: (name: String) -> Unit)
+    fun stopDiscovery()
+}
