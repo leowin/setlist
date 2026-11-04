@@ -29,3 +29,7 @@ expect fun StageEffects(keepScreenOn: Boolean, blackout: Boolean)
 /** Returns a function that opens the system share sheet with plain text. */
 @Composable
 expect fun rememberShareText(): (title: String, text: String) -> Unit
+
+/** Returns a function that opens the system file picker; the chosen file arrives as bytes + name. */
+@Composable
+expect fun rememberFilePicker(onPicked: (bytes: ByteArray, name: String) -> Unit): () -> Unit

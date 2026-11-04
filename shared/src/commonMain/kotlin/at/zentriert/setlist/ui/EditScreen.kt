@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -113,6 +114,12 @@ fun EditScreen(vm: MainViewModel, setlist: Setlist, library: List<Song>, scores:
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                        }
+                        IconButton(onClick = { vm.openNotes(setlist.id, song.id) }) {
+                            Icon(
+                                Icons.Default.MusicNote, "Noten",
+                                tint = if (scores[song.scoreId]?.parts?.isNotEmpty() == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         Column {
                             IconButton(onClick = { vm.moveSong(setlist.id, i, -1) }, enabled = i > 0) {

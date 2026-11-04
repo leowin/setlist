@@ -47,6 +47,11 @@ kotlin {
     }
 }
 
+compose.resources {
+    packageOfResClass = "at.zentriert.setlist.res"
+    publicResClass = false
+}
+
 android {
     namespace = "at.zentriert.setlist.shared"
     compileSdk = 35

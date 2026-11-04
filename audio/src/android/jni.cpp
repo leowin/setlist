@@ -72,4 +72,80 @@ Java_at_zentriert_setlist_audio_NativeAudio_nanosForFrame(JNIEnv*, jobject, jlon
     return engine(h)->nanosForFrame(frame);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_loadSoundFont(JNIEnv* env, jobject, jlong h, jbyteArray data) {
+    jsize size = env->GetArrayLength(data);
+    jbyte* bytes = env->GetByteArrayElements(data, nullptr);
+    bool ok = engine(h)->engine.synth.load(bytes, int(size));
+    env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setPartPreset(JNIEnv*, jobject, jlong h, jint part, jint program, jboolean drums) {
+    engine(h)->engine.commands.push({setlist::Command::SetPreset, int16_t(part), program, drums ? 1.0f : 0.0f});
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setPartGain(JNIEnv*, jobject, jlong h, jint part, jfloat gain) {
+    engine(h)->engine.commands.push({setlist::Command::SetGain, int16_t(part), 0, gain});
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_noteOn(JNIEnv*, jobject, jlong h, jint part, jint key, jint velocity) {
+    engine(h)->engine.commands.push({setlist::Command::NoteOn, int16_t(part), key, float(velocity)});
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_noteOff(JNIEnv*, jobject, jlong h, jint part, jint key) {
+    engine(h)->engine.commands.push({setlist::Command::NoteOff, int16_t(part), key, 0.0f});
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setSequence(JNIEnv* env, jobject, jlong h, jdoubleArray seconds,
+                                                        jintArray parts, jintArray keys, jintArray velocities) {
+    jsize n = env->GetArrayLength(seconds);
+    auto* events = new std::vector<setlist::SeqEvent>(n);
+    jdouble* s = env->GetDoubleArrayElements(seconds, nullptr);
+    jint* p = env->GetIntArrayElements(parts, nullptr);
+    jint* k = env->GetIntArrayElements(keys, nullptr);
+    jint* v = env->GetIntArrayElements(velocities, nullptr);
+    for (jsize i = 0; i < n; ++i) (*events)[i] = {s[i], int16_t(p[i]), uint8_t(k[i]), uint8_t(v[i])};
+    env->ReleaseDoubleArrayElements(seconds, s, JNI_ABORT);
+    env->ReleaseIntArrayElements(parts, p, JNI_ABORT);
+    env->ReleaseIntArrayElements(keys, k, JNI_ABORT);
+    env->ReleaseIntArrayElements(velocities, v, JNI_ABORT);
+    engine(h)->engine.sequencer.setSequence(events);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_play(JNIEnv*, jobject, jlong h, jlong startFrame, jboolean withMetronome) {
+    engine(h)->engine.play(startFrame, withMetronome == JNI_TRUE);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_stopPlayback(JNIEnv*, jobject, jlong h) {
+    engine(h)->engine.stopPlayback();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_isPlaying(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.sequencer.playing() ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jdouble JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_positionSeconds(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.sequencer.positionSeconds();
+}
+
+JNIEXPORT jlong JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_currentFrame(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.currentFrame();
+}
+
+JNIEXPORT jint JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_sampleRate(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.sampleRate();
+}
+
 }  // extern "C"

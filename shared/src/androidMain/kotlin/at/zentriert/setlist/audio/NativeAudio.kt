@@ -18,4 +18,17 @@ internal object NativeAudio {
     external fun positionBeats(handle: Long): Double
     external fun outputLatencyNanos(handle: Long): Long
     external fun nanosForFrame(handle: Long, frame: Long): Long
+
+    external fun loadSoundFont(handle: Long, data: ByteArray): Boolean
+    external fun setPartPreset(handle: Long, part: Int, program: Int, drums: Boolean)
+    external fun setPartGain(handle: Long, part: Int, gain: Float)
+    external fun noteOn(handle: Long, part: Int, key: Int, velocity: Int)
+    external fun noteOff(handle: Long, part: Int, key: Int)
+    external fun setSequence(handle: Long, seconds: DoubleArray, parts: IntArray, keys: IntArray, velocities: IntArray)
+    external fun play(handle: Long, startFrame: Long, withMetronome: Boolean)
+    external fun stopPlayback(handle: Long)
+    external fun isPlaying(handle: Long): Boolean
+    external fun positionSeconds(handle: Long): Double
+    external fun currentFrame(handle: Long): Long
+    external fun sampleRate(handle: Long): Int
 }

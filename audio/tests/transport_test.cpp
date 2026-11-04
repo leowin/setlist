@@ -25,7 +25,7 @@ static std::vector<double> clickFrames(const TransportConfig& c, int sampleRate,
     float peak = 0.0f;
     for (int64_t pos = 0; pos < total; pos += block) {
         std::fill(buf.begin(), buf.end(), 0.0f);
-        m.process(buf.data(), block);
+        m.process(buf.data(), block, pos);
         for (int i = 0; i < block; ++i) {
             float a = std::fabs(buf[i]);
             peak = std::max(a, peak * 0.997f);
@@ -68,9 +68,10 @@ int main() {
         m.setConfig(TransportConfig{120.0, 3, 4, 1, 1});
         m.start();
         std::vector<float> buf(256);
-        m.process(buf.data(), 256);
+        int64_t frame = 0;
+        m.process(buf.data(), 256, frame); frame += 256;
         CHECK(m.positionBeats() < 0);
-        for (int i = 0; i < (int)(1.6 * sr / 256); ++i) m.process(buf.data(), 256);
+        for (int i = 0; i < (int)(1.6 * sr / 256); ++i) { m.process(buf.data(), 256, frame); frame += 256; }
         std::printf("position after 1.6 s with 1 bar count-in: %.3f\n", m.positionBeats());
         CHECK(m.positionBeats() >= 0 && m.positionBeats() < 1);
     }

@@ -9,7 +9,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import at.zentriert.setlist.audio.AudioEngine
 import at.zentriert.setlist.audio.MetronomePosition
+import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.audio.TransportConfig
+import at.zentriert.setlist.midi.MidiFile
+import at.zentriert.setlist.midi.Smf
+import at.zentriert.setlist.res.Res
+import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -21,6 +26,21 @@ sealed interface Screen {
     data class Edit(val setlistId: String) : Screen
     data class Perform(val setlistId: String) : Screen
     data object Library : Screen
+    /** Notes of one song; setlistId is null when opened from the library. */
+    data class Notes(val setlistId: String?, val songId: String) : Screen
+    class MidiImport(val state: MidiImportState) : Screen
+}
+
+/** Where an imported score should go. */
+data class ImportTarget(val setlistId: String?, val songId: String?)
+
+class MidiImportState(val file: MidiFile, val fileName: String, val target: ImportTarget) {
+    val assignments = mutableStateMapOf<Int, Instrument?>().apply {
+        file.tracks.forEach { put(it.index, it.suggestedInstrument()) }
+    }
+    var useTempo by mutableStateOf(true)
+    var error by mutableStateOf<String?>(null)
+    val chosenCount get() = assignments.values.count { it != null }
 }
 
 class ImportState(text: String, name: String) {
@@ -58,6 +78,16 @@ class MainViewModel(
     val scores = repo.scores
     val data = repo.data
 
+    /** The SoundFont ships as a resource and is handed to the synth once per process. */
+    var soundFontReady by mutableStateOf(audio.soundFontLoaded)
+        private set
+
+    init {
+        if (!audio.soundFontLoaded) viewModelScope.launch {
+            soundFontReady = try { audio.loadSoundFont(Res.readBytes("files/setlist.sf2")) } catch (e: Exception) { false }
+        }
+    }
+
     var screen by mutableStateOf<Screen>(Screen.Home)
         private set
 
@@ -85,11 +115,21 @@ class MainViewModel(
     }
 
     private fun leavePerformance() {
-        if (screen is Screen.Perform) {
+        if (screen is Screen.Perform || screen is Screen.Notes) {
             stopMetronome()
+            stopPlayback()
             audio.suspendOutput()
         }
     }
+
+    fun openNotes(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notes(setlistId, songId) }
+
+    /** Back from the notes screen returns to where it was opened. */
+    fun closeNotes(setlistId: String?) = if (setlistId != null) edit(setlistId) else openLibrary()
+
+    fun findSong(setlistId: String?, songId: String): Song? =
+        if (setlistId != null) repo.get(setlistId)?.songs?.firstOrNull { it.id == songId }
+        else repo.data.value.library.firstOrNull { it.id == songId }
 
     fun startImport(text: String, name: String) {
         screen = Screen.Import(ImportState(text, name))
@@ -269,6 +309,148 @@ class MainViewModel(
     }
     fun screenOff() { blackout = true }
     fun screenOn() { blackout = false }
+
+    // --- score playback ---
+
+    var playing by mutableStateOf(false)
+        private set
+    /** Current tick while playing (null in the count-in or when stopped). */
+    var playbackTick by mutableStateOf<Long?>(null)
+        private set
+    private var playbackPoller: Job? = null
+    private var playbackScore: Score? = null
+    private var playbackFrom = 0L
+    private var playbackOffset = 0.0
+
+    /** Per-part gain (0..1) and mute, by instrument; solo wins over everything. */
+    val partGain = mutableStateMapOf<Instrument, Float>()
+    val partMuted = mutableStateMapOf<Instrument, Boolean>()
+    var solo by mutableStateOf<Instrument?>(null)
+        private set
+
+    fun effectiveGain(instrument: Instrument): Float {
+        val base = partGain[instrument] ?: 1f
+        if (solo != null) return if (solo == instrument) base else 0f
+        if (partMuted[instrument] == true) return 0f
+        val me = settings.myInstrument
+        return when (settings.mixMode) {
+            MixMode.ALL -> base
+            MixMode.ONLY_ME -> if (instrument == me) base else 0f
+            MixMode.WITHOUT_ME -> if (instrument == me) 0f else base
+        }
+    }
+
+    private fun applyMix(score: Score) {
+        score.parts.forEachIndexed { i, part -> audio.setPartGain(i, effectiveGain(part.instrument)) }
+    }
+
+    fun setPartGain(score: Score, instrument: Instrument, gain: Float) { partGain[instrument] = gain; applyMix(score) }
+    fun toggleMute(score: Score, instrument: Instrument) { partMuted[instrument] = partMuted[instrument] != true; applyMix(score) }
+    fun toggleSolo(score: Score, instrument: Instrument) { solo = if (solo == instrument) null else instrument; applyMix(score) }
+    fun setMixMode(score: Score?, mode: MixMode) { updateSettings { it.copy(mixMode = mode) }; score?.let(::applyMix) }
+    fun setMyInstrument(score: Score?, instrument: Instrument?) { updateSettings { it.copy(myInstrument = instrument) }; score?.let(::applyMix) }
+
+    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true) {
+        stopPlayback()
+        stopMetronome()
+        score.parts.forEachIndexed { i, part ->
+            audio.setPartPreset(i, part.program, part.instrument == Instrument.DRUMS)
+        }
+        applyMix(score)
+        val transport = TransportConfig(score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, if (withMetronome) settings.countInBars else 0)
+        val offset = if (withMetronome) transport.countInBars * transport.numerator * transport.beatSeconds else 0.0
+        audio.setSequence(ScorePlayback.events(score, fromTick, offset))
+        applyTransport(transport)
+        audio.setClickVolume(settings.clickVolume)
+        audio.play(leadSeconds = 0.15, withMetronome = withMetronome)
+        playbackScore = score; playbackFrom = fromTick; playbackOffset = offset
+        playing = true
+        metronomeOn = withMetronome
+        playbackPoller?.cancel()
+        playbackPoller = viewModelScope.launch {
+            while (isActive) {
+                val pos = audio.positionSeconds()
+                if (pos == null) {
+                    if (!audio.playing && audio.positionBeats() == null) { finishPlayback(); break }
+                } else {
+                    playbackTick = ScorePlayback.tickAt(score, fromTick, offset, pos)
+                }
+                metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, metronomeNumerator) }
+                delay(16)
+            }
+        }
+    }
+
+    private fun finishPlayback() {
+        playing = false
+        playbackTick = null
+        metronomeOn = false
+        metronomePosition = null
+        playbackPoller?.cancel()
+        playbackPoller = null
+    }
+
+    fun stopPlayback() {
+        if (!playing) return
+        audio.stopPlayback()
+        finishPlayback()
+    }
+
+    /** Live playing (pads/keys): the part index is looked up in the current score. */
+    fun noteOn(score: Score, instrument: Instrument, key: Int, velocity: Int = 100) {
+        val part = score.parts.indexOfFirst { it.instrument == instrument }
+        if (part >= 0) audio.noteOn(part, key, velocity)
+    }
+    fun noteOff(score: Score, instrument: Instrument, key: Int) {
+        val part = score.parts.indexOfFirst { it.instrument == instrument }
+        if (part >= 0) audio.noteOff(part, key)
+    }
+
+    // --- MIDI import ---
+
+    var importError by mutableStateOf<String?>(null)
+
+    fun startMidiImport(bytes: ByteArray, fileName: String, target: ImportTarget = ImportTarget(null, null)) {
+        val file = try { Smf.parse(bytes) } catch (e: Exception) {
+            importError = e.message ?: "Datei konnte nicht gelesen werden"
+            return
+        }
+        if (file.tracks.isEmpty()) { importError = "Die Datei enthält keine Noten"; return }
+        leavePerformance()
+        screen = Screen.MidiImport(MidiImportState(file, fileName, target))
+    }
+
+    fun cancelMidiImport(state: MidiImportState) {
+        val t = state.target
+        if (t.songId != null) openNotes(t.setlistId, t.songId) else if (t.setlistId != null) edit(t.setlistId) else goHome()
+    }
+
+    fun finishMidiImport(state: MidiImportState) {
+        val assignments = state.assignments.filterValues { it != null }.mapValues { it.value!! }
+        if (assignments.isEmpty()) { state.error = "Mindestens eine Spur einem Instrument zuordnen"; return }
+        val target = state.target
+        val song = target.songId?.let { findSong(target.setlistId, it) }
+        val base = repo.score(song?.scoreId)
+        var score = state.file.toScore(assignments, base)
+        if (!state.useTempo && base != null) score = score.copy(tempoMap = base.tempoMap, meterMap = base.meterMap)
+        repo.saveScore(score)
+        if (song != null) {
+            val updated = song.copy(scoreId = score.id)
+            if (target.setlistId != null) saveSong(target.setlistId, updated) else repo.saveLibrarySong(updated)
+            openNotes(target.setlistId, song.id)
+        } else {
+            val title = state.fileName.substringBeforeLast('.').replace('_', ' ').trim().ifEmpty { "Importiert" }
+            val newSong = Song(title = title, scoreId = score.id)
+            if (target.setlistId != null) {
+                saveSong(target.setlistId, newSong)
+                openNotes(target.setlistId, newSong.id)
+            } else {
+                repo.remember(listOf(newSong))
+                val stored = repo.findInLibrary(title) ?: newSong
+                openNotes(null, stored.id)
+            }
+        }
+    }
 
     fun updateSettings(transform: (PerformSettings) -> PerformSettings) {
         settings = transform(settings)

@@ -34,9 +34,19 @@ class MainActivity : ComponentActivity() {
         handleShare(intent)
     }
 
-    /** "Senden" from Google Notizen (Keep) delivers the note as plain text. */
+    /** Text from "Senden" (Google Notizen/Keep) becomes a setlist; a MIDI file goes to the importer. */
     private fun handleShare(intent: Intent?) {
-        if (intent?.action != Intent.ACTION_SEND) return
+        if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+        if (uri != null) {
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return
+            var name = uri.lastPathSegment ?: "import.mid"
+            contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) name = c.getString(0) ?: name
+            }
+            vm.startMidiImport(bytes, name)
+            return
+        }
         val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
         val name = intent.getStringExtra(Intent.EXTRA_SUBJECT).orEmpty().trim()
         var body = text

@@ -25,6 +25,13 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   „Übernehmen“ speichert es), Vorzähler, Unterteilung (Achtel/Triolen/16tel), Lautstärke. Der Hintergrund
   des aktuellen Lieds zeigt die Schläge als große Spalten – die laufende leuchtet, die 1 heller –, damit
   man den Takt auch von weit weg sieht. Audio läuft nativ (C++ + Oboe) und ist sample-genau.
+- **Noten aus MIDI-Dateien:** Im Noten-Bildschirm eines Lieds (♪ in Setlist oder Bibliothek) eine `.mid`
+  wählen – oder die Datei aus Dateimanager/Mail mit „Öffnen mit“ an Setlist geben. Pro Spur wählst du
+  Bass, Schlagzeug, Gitarre, Gesang oder „Weglassen“ (Vorschlag automatisch nach Kanal/Programm/Name);
+  Tempo und Taktart der Datei können übernommen werden.
+- **Abspielen & Mixer:** Noten werden mit einem SoundFont-Synth (TinySoundFont, Auszug aus GeneralUser GS)
+  sample-genau zum Metronom abgespielt. Pro Instrument Lautstärke, Stumm und Solo; „Ich spiele …“ plus
+  „Nur ich“ / „Alle außer mir“ als Schnellwahl für jedes Handy.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
@@ -38,7 +45,8 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
   Bildschirm wach halten, Teilen und Einstellungen in `androidMain` / `iosMain`.
 - `androidApp/` – Android-Einstieg (Activity, Manifest, Icon, Tasten/Pedal, „Senden“-Import).
 - `iosApp/` – iOS-Einstieg (Swift + XcodeGen-Spec), siehe `iosApp/README.md`.
-- `audio/` – C++-Audio-Kern (Metronom, Klick-Synth) mit Oboe-Backend für Android; iOS-Backend folgt.
+- `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
+  Android; iOS-Backend folgt. Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
   Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
 
 ## Bauen
@@ -51,4 +59,5 @@ Benötigt JDK 17+ und das Android SDK (`local.properties` mit `sdk.dir=…` oder
 
 Die APK liegt danach unter `androidApp/build/outputs/apk/release/androidApp-release.apk` (mit dem
 Debug-Schlüssel signiert, also direkt installierbar). GitHub Actions baut sie bei jedem Push ebenfalls
-(Artefakt `setlist-apk`) und kompiliert das iOS-Framework auf einem macOS-Runner.
+(Artefakt `setlist-apk`); das iOS-Framework lässt sich über „Run workflow“ auf einem macOS-Runner
+kompilieren (manueller Start, da macOS-Runner für dieses Repo nicht automatisch verfügbar sind).

@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.Screen
+import at.zentriert.setlist.ui.notes.MidiImportScreen
+import at.zentriert.setlist.ui.notes.NotesScreen
 
 @Composable
 fun App(vm: MainViewModel) {
@@ -26,6 +28,10 @@ fun App(vm: MainViewModel) {
                 is Screen.Perform -> setlists.firstOrNull { it.id == screen.setlistId }
                     ?.let { PerformScreen(vm, it) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }
+                is Screen.Notes -> vm.findSong(screen.setlistId, screen.songId)
+                    ?.let { NotesScreen(vm, screen.setlistId, it, scores[it.scoreId]) }
+                    ?: LaunchedEffect(Unit) { vm.closeNotes(screen.setlistId) }
+                is Screen.MidiImport -> MidiImportScreen(vm, screen.state)
             }
         }
     }

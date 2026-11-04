@@ -34,7 +34,7 @@ data class Part(
 @Serializable
 data class Score(
     val id: String = newId(),
-    val ppq: Int = 480,
+    val ppq: Int = DEFAULT_PPQ,
     val tempoMap: List<TempoChange> = listOf(TempoChange(0, 120.0)),
     val meterMap: List<MeterChange> = listOf(MeterChange(0, 4, 4)),
     val parts: List<Part> = emptyList(),
@@ -53,6 +53,7 @@ data class Score(
 
     companion object {
         val METERS = listOf(2 to 4, 3 to 4, 4 to 4, 5 to 4, 6 to 8, 7 to 8, 9 to 8, 12 to 8)
+        const val DEFAULT_PPQ = 480
         const val MIN_BPM = 20.0
         const val MAX_BPM = 300.0
         val DEFAULT_DRUM_PADS = listOf(

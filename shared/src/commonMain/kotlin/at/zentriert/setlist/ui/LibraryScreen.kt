@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -97,18 +98,26 @@ fun LibraryScreen(vm: MainViewModel, library: List<Song>, scores: Map<String, Sc
                 }
                 items(library.search(query), key = { it.id }) { song ->
                     Card(onClick = { editing = song }, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(song.title, style = MaterialTheme.typography.titleMedium)
-                            scores[song.scoreId]?.let {
-                                Text("♩ ${it.summary}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(song.title, style = MaterialTheme.typography.titleMedium)
+                                scores[song.scoreId]?.let {
+                                    Text("♩ ${it.summary}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                }
+                                if (song.notes.isNotBlank()) {
+                                    Text(
+                                        song.notes,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
-                            if (song.notes.isNotBlank()) {
-                                Text(
-                                    song.notes,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
+                            IconButton(onClick = { vm.openNotes(null, song.id) }) {
+                                Icon(
+                                    Icons.Default.MusicNote, "Noten",
+                                    tint = if (scores[song.scoreId]?.parts?.isNotEmpty() == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

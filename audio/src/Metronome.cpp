@@ -36,14 +36,18 @@ void Metronome::advance() {
     nextClickFrame_ += current_.subSeconds() * sampleRate_;
 }
 
-void Metronome::process(float* out, int frames) {
-    if (startRequested_.exchange(false)) {
-        readConfig();
-        frameCounter_ = 0;
-        nextClickFrame_ = 0;
-        bar_ = -current_.countInBars;
-        beat_ = sub_ = 0;
-        running_.store(true);
+void Metronome::process(float* out, int frames, int64_t blockStartFrame) {
+    if (startRequested_.load()) {
+        int64_t startFrame = startFrame_.load();
+        if (startFrame < 0 || startFrame < blockStartFrame + frames) {
+            startRequested_.store(false);
+            readConfig();
+            frameCounter_ = 0;
+            nextClickFrame_ = startFrame < 0 ? 0 : double(std::max<int64_t>(0, startFrame - blockStartFrame));
+            bar_ = -current_.countInBars;
+            beat_ = sub_ = 0;
+            running_.store(true);
+        }
     }
     if (running_.load()) {
         const int64_t blockEnd = frameCounter_ + frames;

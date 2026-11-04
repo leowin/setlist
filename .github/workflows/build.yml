@@ -24,6 +24,8 @@ jobs:
 
   ios-framework:
     # Compiles the shared Kotlin module for iOS; the app itself is built with Xcode (see iosApp/README.md).
+    # macOS runners are not available for this repository's plan, so this job runs only on manual dispatch.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
