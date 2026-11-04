@@ -366,16 +366,12 @@ class MainViewModel(
     private var playbackFrom = 0L
     private var playbackOffset = 0.0
 
-    /** Per-part gain (0..1) and mute, by instrument; solo wins over everything. */
-    val partGain = mutableStateMapOf<Instrument, Float>()
-    val partMuted = mutableStateMapOf<Instrument, Boolean>()
-    var solo by mutableStateOf<Instrument?>(null)
-        private set
-
-    fun effectiveGain(instrument: Instrument): Float {
-        val base = partGain[instrument] ?: 1f
-        if (solo != null) return if (solo == instrument) base else 0f
-        if (partMuted[instrument] == true) return 0f
+    /** Mixer values live in the score (per song); solo wins over everything. */
+    fun effectiveGain(score: Score, instrument: Instrument): Float {
+        val m = score.mixOf(instrument)
+        val base = m.gain
+        if (score.solo != null) return if (score.solo == instrument) base else 0f
+        if (m.muted) return 0f
         val me = settings.myInstrument
         return when (settings.mixMode) {
             MixMode.ALL -> base
@@ -385,12 +381,16 @@ class MainViewModel(
     }
 
     private fun applyMix(score: Score) {
-        score.parts.forEachIndexed { i, part -> audio.setPartGain(i, effectiveGain(part.instrument)) }
+        score.parts.forEachIndexed { i, part -> audio.setPartGain(i, effectiveGain(score, part.instrument)) }
     }
 
-    fun setPartGain(score: Score, instrument: Instrument, gain: Float) { partGain[instrument] = gain; applyMix(score) }
-    fun toggleMute(score: Score, instrument: Instrument) { partMuted[instrument] = partMuted[instrument] != true; applyMix(score) }
-    fun toggleSolo(score: Score, instrument: Instrument) { solo = if (solo == instrument) null else instrument; applyMix(score) }
+    private fun saveMix(score: Score) { repo.saveScore(score); applyMix(score) }
+    fun setPartGain(score: Score, instrument: Instrument, gain: Float) =
+        saveMix(score.copy(mix = score.mix + (instrument to score.mixOf(instrument).copy(gain = gain))))
+    fun toggleMute(score: Score, instrument: Instrument) =
+        saveMix(score.copy(mix = score.mix + (instrument to score.mixOf(instrument).let { it.copy(muted = !it.muted) })))
+    fun toggleSolo(score: Score, instrument: Instrument) =
+        saveMix(score.copy(solo = if (score.solo == instrument) null else instrument))
     fun setMixMode(score: Score?, mode: MixMode) { updateSettings { it.copy(mixMode = mode) }; score?.let(::applyMix) }
     fun setMyInstrument(score: Score?, instrument: Instrument?) { updateSettings { it.copy(myInstrument = instrument) }; score?.let(::applyMix) }
 
@@ -482,10 +482,10 @@ class MainViewModel(
         } else playScore(score, from, withMetronome, countIn = countIn)
     }
 
-    /** A tap on the notation: continue right there, without count-in. */
+    /** A tap on the notation moves the cursor; while playing it continues right there, without count-in. */
     fun jumpTo(score: Score, tick: Long) {
         startTick = tick.coerceAtLeast(0)
-        playFromCursor(score, countIn = false)
+        if (playing) playFromCursor(score, countIn = false)
     }
 
     /** Concert view: play the current song's notes for everyone (host) or just here. */
@@ -543,8 +543,7 @@ class MainViewModel(
 
     private fun ensurePart(score: Score, instrument: Instrument): Score {
         if (score.parts.any { it.instrument == instrument }) return score
-        val program = when (instrument) { Instrument.BASS -> 33; Instrument.GUITAR -> 27; Instrument.VOCALS -> 81; Instrument.DRUMS -> 0 }
-        return score.copy(parts = score.parts + Part(instrument, program = program)).also { repo.saveScore(it) }
+        return score.copy(parts = score.parts + Part(instrument, program = instrument.defaultProgram)).also { repo.saveScore(it) }
     }
 
     fun editScore(current: Score, transform: (Score) -> Score) {

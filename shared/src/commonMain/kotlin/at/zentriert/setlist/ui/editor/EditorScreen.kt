@@ -64,6 +64,7 @@ import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.edit.LoopBars
 import at.zentriert.setlist.edit.NoteValue
 import at.zentriert.setlist.ui.Amber
+import at.zentriert.setlist.ui.InstrumentDropdown
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -91,19 +92,13 @@ fun EditorScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // Instrument tabs
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Instrument.entries.forEach { inst ->
-                    val has = score.parts.any { it.instrument == inst }
-                    FilterChip(
-                        selected = inst == instrument,
-                        onClick = { if (inst != instrument) vm.openEditor(setlistId, song, inst) },
-                        label = { Text(if (has) inst.label else "+ ${inst.label}") },
-                    )
-                }
-            }
-            // Tools
+            // Tools (instrument first: existing parts by name, missing ones as "+ …")
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                InstrumentDropdown(
+                    selected = instrument,
+                    onSelect = { inst -> if (inst != null && inst != instrument) vm.openEditor(setlistId, song, inst) },
+                    labelFor = { inst -> (if (score.parts.any { it.instrument == inst }) "" else "+ ") + "${inst.symbol}  ${inst.label}" },
+                )
                 EditMode.entries.forEach { m -> FilterChip(selected = mode == m, onClick = { mode = m }, label = { Text(m.label) }) }
                 Spacer(Modifier.width(8.dp))
                 NoteValue.CHOICES.filter { it >= 2 }.forEach { div ->

@@ -60,6 +60,7 @@ import at.zentriert.setlist.Score
 import at.zentriert.setlist.Song
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.rememberFilePicker
+import at.zentriert.setlist.ui.InstrumentDropdown
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -129,12 +130,11 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
             item {
                 val missing = Instrument.entries.filter { inst -> score?.parts?.none { it.instrument == inst } ?: true }
                 if (missing.isNotEmpty()) {
-                    Text("Stimme hinzufügen", style = MaterialTheme.typography.labelLarge)
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        missing.forEach { inst ->
-                            FilterChip(selected = false, onClick = { vm.openEditor(setlistId, song, inst) }, label = { Text("+ ${inst.label}") })
-                        }
-                    }
+                    InstrumentDropdown(
+                        selected = null, options = missing, placeholder = "+ Stimme hinzufügen",
+                        onSelect = { inst -> inst?.let { vm.openEditor(setlistId, song, it) } },
+                        labelFor = { "+ ${it.symbol}  ${it.label}" },
+                    )
                 }
             }
         }
@@ -145,15 +145,9 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
 private fun MixPresets(vm: MainViewModel, score: Score) {
     val settings = vm.settings
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Instrument.entries.forEach { instrument ->
-                FilterChip(
-                    selected = settings.myInstrument == instrument,
-                    onClick = { vm.setMyInstrument(score, if (settings.myInstrument == instrument) null else instrument) },
-                    label = { Text(instrument.label) },
-                )
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
+            InstrumentDropdown(selected = settings.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(score, it) })
         }
         Text("Ich höre", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -171,15 +165,16 @@ private fun MixPresets(vm: MainViewModel, score: Score) {
 
 @Composable
 private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, name: String, noteCount: Int, onEdit: () -> Unit) {
-    val gain = vm.partGain[instrument] ?: 1f
-    val muted = vm.partMuted[instrument] == true
-    val solo = vm.solo == instrument
-    val audible = vm.effectiveGain(instrument) > 0f
+    val mix = score.mixOf(instrument)
+    val gain = mix.gain
+    val muted = mix.muted
+    val solo = score.solo == instrument
+    val audible = vm.effectiveGain(score, instrument) > 0f
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(instrument.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${instrument.symbol} ${instrument.label}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         if (name != instrument.label) "$name · $noteCount Noten" else "$noteCount Noten",
                         style = MaterialTheme.typography.bodySmall,

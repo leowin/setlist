@@ -43,6 +43,7 @@ object AlphaTex {
                 sb.append("\\staff ").append(view.staff).append("\n")
                 sb.append("\\tuning (").append(tuning.joinToString(" ") { pitchName(it) }).append(") { hide }\n")
             }
+            part.instrument == Instrument.KEYS -> sb.append("\\staff {score}\n\\tuning piano\n")
             else -> sb.append("\\staff {score}\n\\tuning voice\n")
         }
         if (drums) {

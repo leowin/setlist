@@ -32,6 +32,13 @@ class SmfTest {
     }
 
     @Test
+    fun pianoTracksBecomeKeys() {
+        val piano = Score(parts = listOf(Part(Instrument.KEYS, "Piano", program = 0, notes = listOf(Note(0, 480, 60)))))
+        val file = Smf.parse(Smf.write(piano))
+        assertEquals(Instrument.KEYS, file.tracks.single().suggestedInstrument())
+    }
+
+    @Test
     fun suggestsInstruments() {
         val file = Smf.parse(Smf.write(score))
         assertEquals(Instrument.BASS, file.tracks.first { it.name == "Bass" }.suggestedInstrument())

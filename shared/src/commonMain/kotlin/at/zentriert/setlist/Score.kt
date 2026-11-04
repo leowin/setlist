@@ -3,9 +3,15 @@ package at.zentriert.setlist
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToLong
 
-enum class Instrument(val label: String) {
-    BASS("Bass"), DRUMS("Schlagzeug"), GUITAR("Gitarre"), VOCALS("Gesang"),
+/** Order matters: settings store the ordinal, so new instruments go at the end. */
+enum class Instrument(val label: String, val symbol: String, val defaultProgram: Int) {
+    BASS("Bass", "🎸", 33), DRUMS("Schlagzeug", "🥁", 0), GUITAR("Gitarre", "🎶", 27), VOCALS("Gesang", "🎤", 81),
+    KEYS("Keys", "🎹", 0),
 }
+
+/** Per-song mixer setting of one part. */
+@Serializable
+data class PartMix(val gain: Float = 1f, val muted: Boolean = false)
 
 @Serializable
 data class TempoChange(val tick: Long, val bpm: Double)
@@ -40,7 +46,11 @@ data class Score(
     val parts: List<Part> = emptyList(),
     /** GM drum keys on the 16 pads, left to right, top to bottom. */
     val drumPads: List<Int> = DEFAULT_DRUM_PADS,
+    /** Mixer per instrument, remembered with the song. */
+    val mix: Map<Instrument, PartMix> = emptyMap(),
+    val solo: Instrument? = null,
 ) {
+    fun mixOf(instrument: Instrument) = mix[instrument] ?: PartMix()
     val bpm: Double get() = tempoMap.firstOrNull()?.bpm ?: 120.0
     val meter: MeterChange get() = meterMap.firstOrNull() ?: MeterChange(0, 4, 4)
 

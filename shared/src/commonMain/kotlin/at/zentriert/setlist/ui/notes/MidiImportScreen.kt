@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import at.zentriert.setlist.Instrument
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.MidiImportState
+import at.zentriert.setlist.ui.InstrumentDropdown
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -93,20 +94,11 @@ fun MidiImportScreen(vm: MainViewModel, state: MidiImportState) {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = state.assignments[track.index] == null,
-                                onClick = { state.assignments[track.index] = null },
-                                label = { Text("Weglassen") },
-                            )
-                            Instrument.entries.forEach { instrument ->
-                                FilterChip(
-                                    selected = state.assignments[track.index] == instrument,
-                                    onClick = { state.assignments[track.index] = instrument },
-                                    label = { Text(instrument.label) },
-                                )
-                            }
-                        }
+                        InstrumentDropdown(
+                            selected = state.assignments[track.index],
+                            noneLabel = "Weglassen",
+                            onSelect = { state.assignments[track.index] = it },
+                        )
                     }
                 }
             }

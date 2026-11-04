@@ -52,7 +52,7 @@ void Synth::setPreset(int part, int program, bool drums) {
         if (!tsf_channel_set_bank_preset(current_, part, 128, 0)) tsf_channel_set_presetnumber(current_, part, 0, 1);
     } else if (!tsf_channel_set_bank_preset(current_, part, 0, program)) {
         // Program not in our trimmed SoundFont: fall back to the nearest family we ship.
-        int fallback = program >= 32 && program <= 39 ? 33 : program >= 80 ? 81 : program >= 48 ? 54 : 27;
+        int fallback = program < 24 ? 0 : program >= 32 && program <= 39 ? 33 : program >= 80 ? 81 : program >= 48 ? 54 : 27;
         if (!tsf_channel_set_bank_preset(current_, part, 0, fallback)) tsf_channel_set_presetnumber(current_, part, 0, 0);
     }
 }

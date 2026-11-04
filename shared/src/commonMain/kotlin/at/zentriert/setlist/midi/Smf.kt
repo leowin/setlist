@@ -24,6 +24,7 @@ data class MidiTrack(
     fun suggestedInstrument(): Instrument? = when {
         isDrums -> Instrument.DRUMS
         VOCAL_NAMES.any { name.lowercase().contains(it) } -> Instrument.VOCALS
+        programs.any { it in 0..7 || it in 16..23 } || KEYS_NAMES.any { name.lowercase().contains(it) } -> Instrument.KEYS
         programs.any { it in 32..39 } || name.lowercase().contains("bass") -> Instrument.BASS
         programs.any { it in 24..31 } || name.lowercase().contains("guit") || name.lowercase().contains("gitar") -> Instrument.GUITAR
         else -> null
@@ -31,6 +32,7 @@ data class MidiTrack(
 
     private companion object {
         val VOCAL_NAMES = listOf("voc", "vox", "gesang", "lead", "sing", "melod", "stimme", "chor")
+        val KEYS_NAMES = listOf("piano", "keys", "klavier", "e-piano", "rhodes", "organ", "orgel", "synth")
     }
 }
 

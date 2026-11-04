@@ -40,6 +40,14 @@ class AlphaTexTest {
     }
 
     @Test
+    fun keysUsePianoTuning() {
+        val score = Score(parts = listOf(Part(Instrument.KEYS, "Keys", 0, listOf(Note(0, 480, 60), Note(0, 480, 64)))))
+        val tex = AlphaTex.render(score, "T")
+        assertTrue(tex.contains("\\tuning piano"), tex)
+        assertTrue(tex.contains("(E4 C4).4"), tex)
+    }
+
+    @Test
     fun decomposeUsesDots() {
         assertEquals(listOf(2 to true), AlphaTex.decompose(1440, 480))
         assertEquals(listOf(4 to false, 32 to false), AlphaTex.decompose(540, 480))

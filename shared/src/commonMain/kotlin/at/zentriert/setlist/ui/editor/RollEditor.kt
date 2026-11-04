@@ -63,6 +63,7 @@ private class RollGeometry(
             val (defLow, defHigh) = when (instrument) {
                 Instrument.BASS -> 28 to 55
                 Instrument.GUITAR -> 40 to 76
+                Instrument.KEYS -> 36 to 84
                 else -> 48 to 84
             }
             val keys = part.notes.map { it.key }

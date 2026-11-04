@@ -52,9 +52,6 @@ import at.zentriert.setlist.Song
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.notation.AlphaTex
 
-/** One glyph per instrument for the compact selector. */
-fun Instrument.symbol() = when (this) { Instrument.BASS -> "🎸"; Instrument.DRUMS -> "🥁"; Instrument.GUITAR -> "🎶"; Instrument.VOCALS -> "🎤" }
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun NotationScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score) {
@@ -93,13 +90,13 @@ fun NotationScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Sco
                 // Compact instrument dropdown
                 Box {
                     TextButton(onClick = { menuOpen = true }) {
-                        Text(instrument?.symbol() ?: "–", fontSize = 20.sp)
+                        Text(instrument?.symbol ?: "–", fontSize = 20.sp)
                         Icon(Icons.Default.ArrowDropDown, "Instrument wählen")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         available.forEach { inst ->
                             DropdownMenuItem(
-                                text = { Text("${inst.symbol()}  ${inst.label}") },
+                                text = { Text("${inst.symbol}  ${inst.label}") },
                                 onClick = { instrument = inst; menuOpen = false },
                             )
                         }

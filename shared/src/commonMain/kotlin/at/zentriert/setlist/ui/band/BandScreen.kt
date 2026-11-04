@@ -43,6 +43,7 @@ import at.zentriert.setlist.Instrument
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.band.Role
 import at.zentriert.setlist.ui.metronome.BeatBackground
+import at.zentriert.setlist.ui.InstrumentDropdown
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -89,15 +90,9 @@ fun BandScreen(vm: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 enabled = vm.bandRole == null,
             )
-            Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Instrument.entries.forEach { inst ->
-                    FilterChip(
-                        selected = settings.myInstrument == inst,
-                        onClick = { vm.setMyInstrument(null, if (settings.myInstrument == inst) null else inst) },
-                        label = { Text(inst.label) },
-                    )
-                }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
+                InstrumentDropdown(selected = settings.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(null, it) })
             }
 
             when (vm.bandRole) {
