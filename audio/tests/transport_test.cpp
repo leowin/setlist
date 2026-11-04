@@ -80,6 +80,22 @@ int main() {
         CHECK(c.size() == 1200);
         CHECK(near(c.back(), 1199 * 0.5 * sr, tol));
     }
+    {   // mid-bar start: phase 2.5 beats in 4/4 at 120 → first click (beat 3 "and" is a sub-step only with
+        // subdivision; with quarters the next click is beat 4 at +0.25 s) and the position reads 2.5 at start
+        Metronome m;
+        m.setSampleRate(sr);
+        m.setConfig(TransportConfig{120.0, 4, 4, 1, 2});  // count-in must be ignored
+        m.startAt(0, 2.5);
+        std::vector<float> buf(256);
+        m.process(buf.data(), 256, 0);
+        CHECK(near(m.positionBeats(), 2.5 + 256.0 / (0.5 * sr), 0.01));
+        int64_t firstClick = -1;
+        for (int64_t pos = 0; pos < sr && firstClick < 0; pos += 256) {
+            if (pos > 0) { std::fill(buf.begin(), buf.end(), 0.0f); m.process(buf.data(), 256, pos); }
+            for (int i = 0; i < 256; ++i) if (std::fabs(buf[i]) > 0.02f) { firstClick = pos + i; break; }
+        }
+        CHECK(near(firstClick, 0.25 * sr, tol));
+    }
     {   // pattern helper matches the Kotlin reference
         CHECK(clickTypeFor(0, 0) == ClickType::Accent);
         CHECK(clickTypeFor(2, 0) == ClickType::Beat);

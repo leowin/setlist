@@ -15,8 +15,9 @@ public:
     void setConfig(const TransportConfig& c);
     void setVolume(float v) { volume_.store(v); }
     void start() { startAt(-1); }
-    // Starts with the first click exactly on `engineFrame` (-1 = as soon as possible).
-    void startAt(int64_t engineFrame) { startFrame_.store(engineFrame); startRequested_.store(true); }
+    // Starts with the first click exactly on `engineFrame` (-1 = as soon as possible). `phaseBeats`
+    // (0 ≤ phase < numerator) starts mid-bar, e.g. 2.5 = on the "and" of beat 3; count-in is then skipped.
+    void startAt(int64_t engineFrame, double phaseBeats = 0.0) { phase_.store(phaseBeats); startFrame_.store(engineFrame); startRequested_.store(true); }
     void stop() { running_.store(false); }
     bool running() const { return running_.load(); }
 
@@ -35,6 +36,7 @@ private:
     std::atomic<float> volume_{0.8f};
     std::atomic<bool> startRequested_{false}, running_{false};
     std::atomic<int64_t> startFrame_{-1};
+    std::atomic<double> phase_{0.0};
     std::atomic<double> positionBeats_{0.0};
 
     ClickSynth synth_;

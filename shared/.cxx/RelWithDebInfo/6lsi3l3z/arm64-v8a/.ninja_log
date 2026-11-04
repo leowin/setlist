@@ -5,3 +5,8 @@
 6	1075	1793812370134874479	CMakeFiles/audiocore.dir/src/Synth.cpp.o	4e2cf5a9bd42306e
 2	992	1793815939858792831	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	5e75fe4d5a2efae6
 4	430	1793812369490874494	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
+4	904	1793817874122748590	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
+905	984	1793817874207299857	libaudiocore.a	22d54bf9f59111d7
+8	1384	1793817874602748579	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	578f8eab3c46e8cf
+7	1425	1793817874646748578	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	5e75fe4d5a2efae6
+1426	1530	1793817874750748576	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	ece5fe7dd9fb90b6

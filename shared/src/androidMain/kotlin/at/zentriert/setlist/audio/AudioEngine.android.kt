@@ -45,13 +45,13 @@ class AndroidAudioEngine : AudioEngine {
 
     override fun setLoop(startSeconds: Double, endSeconds: Double) = NativeAudio.setLoop(handle, startSeconds, endSeconds)
 
-    override fun play(leadSeconds: Double, withMetronome: Boolean) {
+    override fun play(leadSeconds: Double, withMetronome: Boolean, metronomePhaseBeats: Double) {
         ensureStream()
         val startFrame = NativeAudio.currentFrame(handle) + (leadSeconds * NativeAudio.sampleRate(handle)).toLong()
-        NativeAudio.play(handle, startFrame, withMetronome)
+        NativeAudio.play(handle, startFrame, withMetronome, metronomePhaseBeats)
     }
 
-    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean) {
+    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean, metronomePhaseBeats: Double) {
         ensureStream()
         val frame0 = NativeAudio.currentFrame(handle)
         val sr = NativeAudio.sampleRate(handle)
@@ -63,7 +63,7 @@ class AndroidAudioEngine : AudioEngine {
             val lead = (atNanos - System.nanoTime() - NativeAudio.outputLatencyNanos(handle)) / 1e9
             frame0 + (lead.coerceAtLeast(0.0) * sr).toLong()
         }
-        if (metronomeOnly) NativeAudio.metronomeStartAt(handle, startFrame) else NativeAudio.play(handle, startFrame, withMetronome)
+        if (metronomeOnly) NativeAudio.metronomeStartAt(handle, startFrame) else NativeAudio.play(handle, startFrame, withMetronome, metronomePhaseBeats)
     }
 
     override fun stopPlayback() = NativeAudio.stopPlayback(handle)

@@ -24,10 +24,13 @@ interface AudioEngine {
     fun setSequence(events: List<PlaybackEvent>)
     /** Loops [startSeconds, endSeconds) of the sequence; end <= start disables looping. */
     fun setLoop(startSeconds: Double, endSeconds: Double)
-    /** Starts the sequence [leadSeconds] from now, optionally with the metronome locked to it. */
-    fun play(leadSeconds: Double, withMetronome: Boolean)
+    /**
+     * Starts the sequence [leadSeconds] from now, optionally with the metronome locked to it;
+     * [metronomePhaseBeats] places the metronome mid-bar when the sequence starts mid-bar.
+     */
+    fun play(leadSeconds: Double, withMetronome: Boolean, metronomePhaseBeats: Double = 0.0)
     /** Starts the sequence (or, with [metronomeOnly], just the metronome) when the local monotonic clock reaches [atNanos]. */
-    fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean = false)
+    fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean = false, metronomePhaseBeats: Double = 0.0)
     fun stopPlayback()
     val playing: Boolean
     /** Seconds since playback start, or null when stopped. */
@@ -68,13 +71,13 @@ class SilentAudioEngine : AudioEngine {
     override fun setPartGain(part: Int, gain: Float) {}
     override fun setSequence(events: List<PlaybackEvent>) { sequenceEnd = events.maxOfOrNull { it.seconds } ?: 0.0 }
     override fun setLoop(startSeconds: Double, endSeconds: Double) { if (endSeconds > startSeconds) sequenceEnd = Double.MAX_VALUE }
-    override fun play(leadSeconds: Double, withMetronome: Boolean) {
+    override fun play(leadSeconds: Double, withMetronome: Boolean, metronomePhaseBeats: Double) {
         playStartedAt = currentTimeMillis() + (leadSeconds * 1000).toLong()
         if (withMetronome) metronomeStartedAt = playStartedAt
     }
-    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean) {
+    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean, metronomePhaseBeats: Double) {
         val lead = (atNanos - at.zentriert.setlist.monotonicNanos()) / 1e9
-        if (metronomeOnly) metronomeStartedAt = currentTimeMillis() + (lead * 1000).toLong() else play(lead, withMetronome)
+        if (metronomeOnly) metronomeStartedAt = currentTimeMillis() + (lead * 1000).toLong() else play(lead, withMetronome, metronomePhaseBeats)
     }
     override fun stopPlayback() { playStartedAt = null; metronomeStartedAt = null }
     override val playing: Boolean get() = positionSeconds() != null

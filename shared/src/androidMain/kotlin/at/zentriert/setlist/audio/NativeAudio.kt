@@ -27,7 +27,7 @@ internal object NativeAudio {
     external fun noteOff(handle: Long, part: Int, key: Int)
     external fun setSequence(handle: Long, seconds: DoubleArray, parts: IntArray, keys: IntArray, velocities: IntArray)
     external fun setLoop(handle: Long, startSeconds: Double, endSeconds: Double)
-    external fun play(handle: Long, startFrame: Long, withMetronome: Boolean)
+    external fun play(handle: Long, startFrame: Long, withMetronome: Boolean, metronomePhaseBeats: Double)
     external fun stopPlayback(handle: Long)
     external fun isPlaying(handle: Long): Boolean
     external fun positionSeconds(handle: Long): Double

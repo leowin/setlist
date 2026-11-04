@@ -124,8 +124,8 @@ Java_at_zentriert_setlist_audio_NativeAudio_setSequence(JNIEnv* env, jobject, jl
 }
 
 JNIEXPORT void JNICALL
-Java_at_zentriert_setlist_audio_NativeAudio_play(JNIEnv*, jobject, jlong h, jlong startFrame, jboolean withMetronome) {
-    engine(h)->engine.play(startFrame, withMetronome == JNI_TRUE);
+Java_at_zentriert_setlist_audio_NativeAudio_play(JNIEnv*, jobject, jlong h, jlong startFrame, jboolean withMetronome, jdouble phaseBeats) {
+    engine(h)->engine.play(startFrame, withMetronome == JNI_TRUE, phaseBeats);
 }
 
 JNIEXPORT void JNICALL

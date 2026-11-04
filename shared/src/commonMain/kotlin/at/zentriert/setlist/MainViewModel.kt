@@ -394,14 +394,19 @@ class MainViewModel(
     fun setMixMode(score: Score?, mode: MixMode) { updateSettings { it.copy(mixMode = mode) }; score?.let(::applyMix) }
     fun setMyInstrument(score: Score?, instrument: Instrument?) { updateSettings { it.copy(myInstrument = instrument) }; score?.let(::applyMix) }
 
-    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true, loop: LoopBars? = null, atNanos: Long? = null) {
+    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true, loop: LoopBars? = null, atNanos: Long? = null, countIn: Boolean = true) {
         stopPlayback()
         stopMetronome()
+        // Metronome phase: where inside the bar the notes start (count-in only from a bar line).
+        val beatTicks = score.ppq * 4L / score.meter.denominator
+        val barTicks = beatTicks * score.meter.numerator
+        val phaseBeats = (fromTick % barTicks).toDouble() / beatTicks
+        val useCountIn = countIn && withMetronome && phaseBeats == 0.0
         score.parts.forEachIndexed { i, part ->
             audio.setPartPreset(i, part.program, part.instrument == Instrument.DRUMS)
         }
         applyMix(score)
-        val transport = TransportConfig(score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, if (withMetronome) settings.countInBars else 0)
+        val transport = TransportConfig(score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, if (useCountIn) settings.countInBars else 0)
         val offset = if (withMetronome) transport.countInBars * transport.numerator * transport.beatSeconds else 0.0
         audio.setSequence(ScorePlayback.events(score, fromTick, offset))
         if (loop != null) {
@@ -413,7 +418,8 @@ class MainViewModel(
         } else audio.setLoop(0.0, 0.0)
         applyTransport(transport)
         audio.setClickVolume(settings.clickVolume)
-        if (atNanos != null) audio.playAt(atNanos, withMetronome) else audio.play(leadSeconds = 0.15, withMetronome = withMetronome)
+        if (atNanos != null) audio.playAt(atNanos, withMetronome, metronomePhaseBeats = phaseBeats)
+        else audio.play(leadSeconds = 0.15, withMetronome = withMetronome, metronomePhaseBeats = phaseBeats)
         playbackScore = score; playbackFrom = fromTick; playbackOffset = offset
         playing = true
         metronomeOn = withMetronome
@@ -461,19 +467,20 @@ class MainViewModel(
         if (screen is Screen.Perform) performBpm?.let { score.withTempo(it) } ?: score else score
 
     /** Play from the cursor; a tap on the notation sets the cursor and, while playing, jumps there. */
-    fun playFromCursor(original: Score, withMetronome: Boolean = true) {
+    fun playFromCursor(original: Score, withMetronome: Boolean = true, countIn: Boolean = startTick == 0L) {
         val score = withPerformTempo(original)
         val from = startTick.coerceIn(0, ScorePlayback.lastTick(score))
         if (bandRole == Role.HOST && screen is Screen.Perform) {
             val at = referenceNow(START_LEAD_NANOS)
-            band?.broadcast(Msg.Start(at, score.id, from, score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, settings.countInBars, withMetronome))
-            playScore(score, from, withMetronome, atNanos = hostToLocal(at))
-        } else playScore(score, from, withMetronome)
+            band?.broadcast(Msg.Start(at, score.id, from, score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, if (countIn) settings.countInBars else 0, withMetronome))
+            playScore(score, from, withMetronome, atNanos = hostToLocal(at), countIn = countIn)
+        } else playScore(score, from, withMetronome, countIn = countIn)
     }
 
+    /** A tap on the notation: continue right there, without count-in. */
     fun jumpTo(score: Score, tick: Long) {
         startTick = tick.coerceAtLeast(0)
-        if (playing) playFromCursor(score)
+        playFromCursor(score, countIn = false)
     }
 
     /** Concert view: play the current song's notes for everyone (host) or just here. */
@@ -826,7 +833,7 @@ class MainViewModel(
                 val at = hostToLocal(msg.atHostNanos)
                 val score = msg.scoreId?.let { repo.score(it) }
                 if (score != null) {
-                    playScore(score, msg.fromTick, msg.withMetronome, atNanos = at)
+                    playScore(score, msg.fromTick, msg.withMetronome, atNanos = at, countIn = msg.countInBars > 0)
                 } else {
                     stopPlayback(); stopMetronome()
                     audio.setClickVolume(settings.clickVolume)

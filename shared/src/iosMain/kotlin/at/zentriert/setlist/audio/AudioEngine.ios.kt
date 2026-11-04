@@ -68,19 +68,19 @@ class IosAudioEngine : AudioEngine {
         } } } }
     }
     override fun setLoop(startSeconds: Double, endSeconds: Double) = sl_set_loop(handle, startSeconds, endSeconds)
-    override fun play(leadSeconds: Double, withMetronome: Boolean) {
+    override fun play(leadSeconds: Double, withMetronome: Boolean, metronomePhaseBeats: Double) {
         ensureStream()
         val start = sl_current_frame(handle) + (leadSeconds * sl_sample_rate(handle)).toLong()
-        sl_play(handle, start, if (withMetronome) 1 else 0)
+        sl_play(handle, start, if (withMetronome) 1 else 0, metronomePhaseBeats)
     }
-    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean) {
+    override fun playAt(atNanos: Long, withMetronome: Boolean, metronomeOnly: Boolean, metronomePhaseBeats: Double) {
         ensureStream()
         val frame0 = sl_current_frame(handle)
         val sr = sl_sample_rate(handle)
         val t0 = sl_nanos_for_frame(handle, frame0)
         val startFrame = if (t0 > 0) frame0 + (atNanos - t0) * sr / 1_000_000_000L
         else frame0 + (((atNanos - monotonicNanos() - sl_output_latency_nanos(handle)) / 1e9).coerceAtLeast(0.0) * sr).toLong()
-        if (metronomeOnly) sl_metronome_start_at(handle, startFrame) else sl_play(handle, startFrame, if (withMetronome) 1 else 0)
+        if (metronomeOnly) sl_metronome_start_at(handle, startFrame) else sl_play(handle, startFrame, if (withMetronome) 1 else 0, metronomePhaseBeats)
     }
     override fun stopPlayback() = sl_stop_playback(handle)
     override val playing: Boolean get() = sl_is_playing(handle) != 0

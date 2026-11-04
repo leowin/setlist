@@ -1,5 +1,6 @@
 #include "Metronome.h"
 #include <algorithm>
+#include <cmath>
 
 namespace setlist {
 
@@ -43,9 +44,23 @@ void Metronome::process(float* out, int frames, int64_t blockStartFrame) {
             startRequested_.store(false);
             readConfig();
             frameCounter_ = 0;
-            nextClickFrame_ = startFrame < 0 ? 0 : double(std::max<int64_t>(0, startFrame - blockStartFrame));
-            bar_ = -current_.countInBars;
-            beat_ = sub_ = 0;
+            double offset = startFrame < 0 ? 0 : double(std::max<int64_t>(0, startFrame - blockStartFrame));
+            double phase = phase_.load();
+            if (phase > 0.0) {
+                // Mid-bar start: the grid is anchored so that `offset` corresponds to `phase` beats
+                // into bar 0; the first click is the next sub-step at or after that point.
+                double subPos = phase * current_.subdivision;
+                double subFrames = current_.subSeconds() * sampleRate_;
+                int idx = int(std::ceil(subPos - 1e-6));
+                nextClickFrame_ = offset + (idx - subPos) * subFrames;
+                beat_ = (idx / current_.subdivision) % current_.numerator;
+                sub_ = idx % current_.subdivision;
+                bar_ = (idx / current_.subdivision) / current_.numerator;
+            } else {
+                nextClickFrame_ = offset;
+                bar_ = -current_.countInBars;
+                beat_ = sub_ = 0;
+            }
             running_.store(true);
         }
     }

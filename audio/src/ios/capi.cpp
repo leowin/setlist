@@ -33,7 +33,7 @@ void sl_set_sequence(sl_engine* e, const double* seconds, const int32_t* parts, 
     E(e)->engine.sequencer.setSequence(events);
 }
 void sl_set_loop(sl_engine* e, double start, double end) { E(e)->engine.sequencer.setLoop(start, end); }
-void sl_play(sl_engine* e, int64_t startFrame, int withMetronome) { E(e)->engine.play(startFrame, withMetronome != 0); }
+void sl_play(sl_engine* e, int64_t startFrame, int withMetronome, double phase) { E(e)->engine.play(startFrame, withMetronome != 0, phase); }
 void sl_stop_playback(sl_engine* e) { E(e)->engine.stopPlayback(); }
 int sl_is_playing(sl_engine* e) { return E(e)->engine.sequencer.playing() ? 1 : 0; }
 double sl_position_seconds(sl_engine* e) { return E(e)->engine.sequencer.positionSeconds(); }

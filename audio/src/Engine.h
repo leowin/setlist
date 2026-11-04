@@ -28,9 +28,9 @@ public:
     int64_t currentFrame() const { return frame_.load(); }
 
     // UI thread: start the sequence (and optionally the metronome) at an engine frame.
-    void play(int64_t startFrame, bool withMetronome) {
+    void play(int64_t startFrame, bool withMetronome, double metronomePhaseBeats = 0.0) {
         sequencer.play(startFrame);
-        if (withMetronome) metronome.startAt(startFrame);
+        if (withMetronome) metronome.startAt(startFrame, metronomePhaseBeats);
         metronomeFollows_ = withMetronome;
     }
     void stopPlayback() {

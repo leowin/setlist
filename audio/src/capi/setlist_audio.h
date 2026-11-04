@@ -28,7 +28,7 @@ void sl_note_on(sl_engine* e, int part, int key, int velocity);
 void sl_note_off(sl_engine* e, int part, int key);
 void sl_set_sequence(sl_engine* e, const double* seconds, const int32_t* parts, const int32_t* keys, const int32_t* velocities, int count);
 void sl_set_loop(sl_engine* e, double start_seconds, double end_seconds);
-void sl_play(sl_engine* e, int64_t start_frame, int with_metronome);
+void sl_play(sl_engine* e, int64_t start_frame, int with_metronome, double metronome_phase_beats);
 void sl_stop_playback(sl_engine* e);
 int sl_is_playing(sl_engine* e);
 double sl_position_seconds(sl_engine* e);
