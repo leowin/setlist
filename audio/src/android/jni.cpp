@@ -124,6 +124,11 @@ Java_at_zentriert_setlist_audio_NativeAudio_play(JNIEnv*, jobject, jlong h, jlon
 }
 
 JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setLoop(JNIEnv*, jobject, jlong h, jdouble start, jdouble end) {
+    engine(h)->engine.sequencer.setLoop(start, end);
+}
+
+JNIEXPORT void JNICALL
 Java_at_zentriert_setlist_audio_NativeAudio_stopPlayback(JNIEnv*, jobject, jlong h) {
     engine(h)->engine.stopPlayback();
 }

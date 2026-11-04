@@ -22,6 +22,8 @@ interface AudioEngine {
     fun setPartPreset(part: Int, program: Int, drums: Boolean)
     fun setPartGain(part: Int, gain: Float)
     fun setSequence(events: List<PlaybackEvent>)
+    /** Loops [startSeconds, endSeconds) of the sequence; end <= start disables looping. */
+    fun setLoop(startSeconds: Double, endSeconds: Double)
     /** Starts the sequence [leadSeconds] from now, optionally with the metronome locked to it. */
     fun play(leadSeconds: Double, withMetronome: Boolean)
     fun stopPlayback()
@@ -63,6 +65,7 @@ class SilentAudioEngine : AudioEngine {
     override fun setPartPreset(part: Int, program: Int, drums: Boolean) {}
     override fun setPartGain(part: Int, gain: Float) {}
     override fun setSequence(events: List<PlaybackEvent>) { sequenceEnd = events.maxOfOrNull { it.seconds } ?: 0.0 }
+    override fun setLoop(startSeconds: Double, endSeconds: Double) { if (endSeconds > startSeconds) sequenceEnd = Double.MAX_VALUE }
     override fun play(leadSeconds: Double, withMetronome: Boolean) {
         playStartedAt = currentTimeMillis() + (leadSeconds * 1000).toLong()
         if (withMetronome) metronomeStartedAt = playStartedAt

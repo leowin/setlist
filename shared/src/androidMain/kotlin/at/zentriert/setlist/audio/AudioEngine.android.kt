@@ -43,6 +43,8 @@ class AndroidAudioEngine : AudioEngine {
         IntArray(events.size) { events[it].velocity },
     )
 
+    override fun setLoop(startSeconds: Double, endSeconds: Double) = NativeAudio.setLoop(handle, startSeconds, endSeconds)
+
     override fun play(leadSeconds: Double, withMetronome: Boolean) {
         ensureStream()
         val startFrame = NativeAudio.currentFrame(handle) + (leadSeconds * NativeAudio.sampleRate(handle)).toLong()

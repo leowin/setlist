@@ -11,6 +11,13 @@ import at.zentriert.setlist.audio.AudioEngine
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.audio.TransportConfig
+import at.zentriert.setlist.edit.LatencyCalibration
+import at.zentriert.setlist.edit.LoopBars
+import at.zentriert.setlist.edit.NoteValue
+import at.zentriert.setlist.edit.PartEdit
+import at.zentriert.setlist.edit.Quantize
+import at.zentriert.setlist.edit.RecordedPress
+import at.zentriert.setlist.edit.Recording
 import at.zentriert.setlist.midi.MidiFile
 import at.zentriert.setlist.midi.Smf
 import at.zentriert.setlist.res.Res
@@ -29,6 +36,7 @@ sealed interface Screen {
     /** Notes of one song; setlistId is null when opened from the library. */
     data class Notes(val setlistId: String?, val songId: String) : Screen
     class MidiImport(val state: MidiImportState) : Screen
+    data class Editor(val setlistId: String?, val songId: String, val instrument: Instrument) : Screen
 }
 
 /** Where an imported score should go. */
@@ -115,7 +123,8 @@ class MainViewModel(
     }
 
     private fun leavePerformance() {
-        if (screen is Screen.Perform || screen is Screen.Notes) {
+        if (screen is Screen.Perform || screen is Screen.Notes || screen is Screen.Editor) {
+            if (recording) recording = false
             stopMetronome()
             stopPlayback()
             audio.suspendOutput()
@@ -350,7 +359,7 @@ class MainViewModel(
     fun setMixMode(score: Score?, mode: MixMode) { updateSettings { it.copy(mixMode = mode) }; score?.let(::applyMix) }
     fun setMyInstrument(score: Score?, instrument: Instrument?) { updateSettings { it.copy(myInstrument = instrument) }; score?.let(::applyMix) }
 
-    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true) {
+    fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true, loop: LoopBars? = null) {
         stopPlayback()
         stopMetronome()
         score.parts.forEachIndexed { i, part ->
@@ -360,6 +369,13 @@ class MainViewModel(
         val transport = TransportConfig(score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, if (withMetronome) settings.countInBars else 0)
         val offset = if (withMetronome) transport.countInBars * transport.numerator * transport.beatSeconds else 0.0
         audio.setSequence(ScorePlayback.events(score, fromTick, offset))
+        if (loop != null) {
+            val (a, b) = loop.ticks(score)
+            val map = TempoMap(score)
+            val origin = map.tickToMicros(fromTick)
+            fun sec(t: Long) = (map.tickToMicros(t) - origin) / 1_000_000.0 + offset
+            audio.setLoop(sec(maxOf(a, fromTick)), sec(b))
+        } else audio.setLoop(0.0, 0.0)
         applyTransport(transport)
         audio.setClickVolume(settings.clickVolume)
         audio.play(leadSeconds = 0.15, withMetronome = withMetronome)
@@ -396,14 +412,186 @@ class MainViewModel(
         finishPlayback()
     }
 
-    /** Live playing (pads/keys): the part index is looked up in the current score. */
+    /** Live playing (pads/keys); while recording or in step input the press also becomes a note. */
     fun noteOn(score: Score, instrument: Instrument, key: Int, velocity: Int = 100) {
         val part = score.parts.indexOfFirst { it.instrument == instrument }
-        if (part >= 0) audio.noteOn(part, key, velocity)
+        if (part >= 0) { audio.setPartPreset(part, score.parts[part].program, instrument == Instrument.DRUMS); audio.noteOn(part, key, velocity) }
+        when {
+            recording && instrument == recordInstrument -> audio.positionSeconds()?.let { pos ->
+                openPresses[key] = presses.size
+                presses += RecordedPress(pos, null, key, velocity)
+            }
+            stepInput && !playing -> stepInsert(score, instrument, key, velocity)
+        }
     }
     fun noteOff(score: Score, instrument: Instrument, key: Int) {
         val part = score.parts.indexOfFirst { it.instrument == instrument }
         if (part >= 0) audio.noteOff(part, key)
+        if (recording) openPresses.remove(key)?.let { i ->
+            val pos = audio.positionSeconds() ?: return
+            presses[i] = presses[i].copy(offSeconds = pos)
+        }
+    }
+
+    // --- editor ---
+
+    var editSelection by mutableStateOf<Set<Note>>(emptySet())
+    private val undoStack = ArrayDeque<Score>()
+    private val redoStack = ArrayDeque<Score>()
+    val canUndo get() = undoStack.isNotEmpty()
+    val canRedo get() = redoStack.isNotEmpty()
+
+    fun noteValue() = NoteValue(settings.noteDivision, settings.noteTriplet)
+    fun quantizeGrid(score: Score): Long? = if (settings.quantizeOn) NoteValue(settings.quantizeDivision).ticks(score.ppq) else null
+
+    fun openEditor(setlistId: String?, song: Song, instrument: Instrument) {
+        val score = ensurePart(ensureScore(setlistId, song), instrument)
+        if (score.id != song.scoreId) {
+            val updated = song.copy(scoreId = score.id)
+            if (setlistId != null) saveSong(setlistId, updated) else repo.saveLibrarySong(updated)
+        }
+        undoStack.clear(); redoStack.clear(); editSelection = emptySet()
+        leavePerformance()
+        screen = Screen.Editor(setlistId, song.id, instrument)
+    }
+
+    private fun ensureScore(setlistId: String?, song: Song): Score =
+        repo.score(song.scoreId) ?: Score().also { repo.saveScore(it) }
+
+    private fun ensurePart(score: Score, instrument: Instrument): Score {
+        if (score.parts.any { it.instrument == instrument }) return score
+        val program = when (instrument) { Instrument.BASS -> 33; Instrument.GUITAR -> 27; Instrument.VOCALS -> 81; Instrument.DRUMS -> 0 }
+        return score.copy(parts = score.parts + Part(instrument, program = program)).also { repo.saveScore(it) }
+    }
+
+    fun editScore(current: Score, transform: (Score) -> Score) {
+        val next = transform(current)
+        if (next == current) return
+        undoStack.addLast(current)
+        if (undoStack.size > 60) undoStack.removeFirst()
+        redoStack.clear()
+        repo.saveScore(next)
+    }
+
+    fun editPart(score: Score, instrument: Instrument, transform: (Part) -> Part) = editScore(score) { s ->
+        s.copy(parts = s.parts.map { if (it.instrument == instrument) transform(it) else it })
+    }
+
+    fun undo(current: Score) {
+        val previous = undoStack.removeLastOrNull() ?: return
+        redoStack.addLast(current); editSelection = emptySet(); repo.saveScore(previous)
+    }
+    fun redo(current: Score) {
+        val next = redoStack.removeLastOrNull() ?: return
+        undoStack.addLast(current); editSelection = emptySet(); repo.saveScore(next)
+    }
+
+    fun deleteSelection(score: Score, instrument: Instrument) {
+        editPart(score, instrument) { PartEdit.remove(it, editSelection) }
+        editSelection = emptySet()
+    }
+    fun moveSelection(score: Score, instrument: Instrument, deltaTicks: Long, deltaKeys: Int) {
+        editPart(score, instrument) { PartEdit.move(it, editSelection, deltaTicks, deltaKeys) }
+        editSelection = editSelection.map { it.copy(tick = it.tick + deltaTicks, key = it.key + deltaKeys) }.toSet()
+    }
+    fun resizeSelection(score: Score, instrument: Instrument, deltaTicks: Long) {
+        val minimum = NoteValue(32).ticks(score.ppq)
+        editPart(score, instrument) { PartEdit.resize(it, editSelection, deltaTicks, minimum) }
+        editSelection = editSelection.map { it.copy(duration = (it.duration + deltaTicks).coerceAtLeast(minimum)) }.toSet()
+    }
+    fun quantizeSelection(score: Score, instrument: Instrument) {
+        val grid = NoteValue(settings.quantizeDivision).ticks(score.ppq)
+        val target = editSelection.ifEmpty { score.parts.first { it.instrument == instrument }.notes.toSet() }
+        editPart(score, instrument) { p ->
+            p.copy(notes = p.notes.map { if (it in target) Quantize.notes(listOf(it), grid, settings.quantizeStrength).first() else it })
+        }
+        editSelection = emptySet()
+    }
+    fun setDrumPad(score: Score, index: Int, key: Int) = editScore(score) { s ->
+        s.copy(drumPads = s.drumPads.toMutableList().also { if (index in it.indices) it[index] = key })
+    }
+
+    // --- step input ---
+
+    var stepInput by mutableStateOf(false)
+    var cursorTick by mutableStateOf(0L)
+
+    private fun stepInsert(score: Score, instrument: Instrument, key: Int, velocity: Int) {
+        val length = noteValue().ticks(score.ppq)
+        editPart(score, instrument) { PartEdit.add(it, Note(cursorTick, length, key, velocity)) }
+        if (instrument != Instrument.DRUMS) cursorTick += length
+    }
+    fun stepAdvance(score: Score, steps: Int) {
+        cursorTick = (cursorTick + steps * noteValue().ticks(score.ppq)).coerceAtLeast(0)
+    }
+
+    // --- recording ---
+
+    var recording by mutableStateOf(false)
+        private set
+    var recordInstrument by mutableStateOf<Instrument?>(null)
+        private set
+    var loop by mutableStateOf<LoopBars?>(null)
+    private val presses = mutableListOf<RecordedPress>()
+    private val openPresses = HashMap<Int, Int>()
+
+    /** Default when not calibrated: the engine's output latency plus a typical touch delay. */
+    fun inputLatencySeconds(): Double =
+        if (settings.inputLatencyMs >= 0) settings.inputLatencyMs / 1000.0 else audio.outputLatencyNanos() / 1e9 + 0.03
+
+    fun startRecording(score: Score, instrument: Instrument, fromTick: Long) {
+        presses.clear(); openPresses.clear()
+        recordInstrument = instrument
+        playScore(score, fromTick, withMetronome = true, loop = loop)
+        recording = true
+    }
+
+    fun stopRecording(score: Score) {
+        if (!recording) return
+        val instrument = recordInstrument ?: return
+        val from = playbackFrom; val offset = playbackOffset
+        stopPlayback()
+        recording = false
+        if (presses.isEmpty()) return
+        val grid = quantizeGrid(score)
+        val notes = Recording.toNotes(
+            presses.toList(), score, from, offset, inputLatencySeconds(), grid, settings.quantizeStrength,
+            if (instrument == Instrument.DRUMS) NoteValue(16).ticks(score.ppq) else noteValue().ticks(score.ppq),
+        )
+        editPart(score, instrument) { part ->
+            if (settings.recordReplace) {
+                val (a, b) = loop?.ticks(score) ?: (notes.minOf { it.tick } to notes.maxOf { it.tick + it.duration })
+                PartEdit.replaceRange(part, a, b, notes)
+            } else notes.fold(part) { acc, n -> PartEdit.add(acc, n) }
+        }
+    }
+
+    // --- latency calibration ---
+
+    var calibrating by mutableStateOf(false)
+        private set
+    var calibrationTaps by mutableStateOf(0)
+        private set
+    private val calibrationPositions = mutableListOf<Double>()
+
+    fun startCalibration() {
+        calibrationPositions.clear(); calibrationTaps = 0
+        applyTransport(TransportConfig(100.0, 4, 4, 1, 0))
+        audio.setClickVolume(settings.clickVolume)
+        audio.startMetronome()
+        metronomeOn = true
+        calibrating = true
+    }
+    fun calibrationTap() {
+        audio.positionBeats()?.let { calibrationPositions += it; calibrationTaps = calibrationPositions.size }
+    }
+    /** Stores the result; returns it in ms or null when too few taps. */
+    fun finishCalibration(): Int? {
+        audio.stopMetronome(); metronomeOn = false; calibrating = false
+        val seconds = LatencyCalibration.estimate(calibrationPositions.drop(2), 0.6) ?: return null
+        val ms = (seconds * 1000).toInt().coerceIn(0, 400)
+        updateSettings { it.copy(inputLatencyMs = ms) }
+        return ms
     }
 
     // --- MIDI import ---

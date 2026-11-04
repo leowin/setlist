@@ -56,6 +56,39 @@ int main(int argc, char** argv) {
     std::printf("position after 1 s: %.4f (expected %.4f)\n", positionAtOneSecond, expectedPos);
     CHECK(std::fabs(positionAtOneSecond - expectedPos) < double(block) / sr);
     CHECK(!engine.sequencer.playing());  // finished: last event + 1 s has passed
+    {   // Loop: sequencer-level check of the wrap. Events at 0 and 0.5 s in a 1 s loop → dispatched at exact frames.
+        Sequencer seq;
+        auto* loopSeq = new std::vector<SeqEvent>{{0.0, 0, 60, 120}, {0.4, 0, 60, 0}, {0.5, 0, 64, 120}, {0.9, 0, 64, 0}};
+        seq.setSequence(loopSeq);
+        seq.setLoop(0.0, 1.0);
+        seq.play(100);  // start 100 frames in
+        std::vector<int64_t> onFrames; int wraps = 0;
+        for (int64_t blockStart = 0; blockStart < 3 * sr; blockStart += block) {
+            seq.beginBlock(blockStart, block, sr);
+            int pos = 0;
+            while (pos < block) {
+                int64_t next = seq.nextEventFrame();
+                int chunkEnd = next >= blockStart + block ? block : int(std::max<int64_t>(next - blockStart, pos));
+                if (chunkEnd < block) {
+                    seq.dispatchUpTo(blockStart + chunkEnd,
+                        [&](const SeqEvent& e) { if (e.velocity) onFrames.push_back(blockStart + chunkEnd); },
+                        [&] { ++wraps; });
+                }
+                pos = chunkEnd;
+            }
+        }
+        std::printf("loop note-ons:");
+        for (auto f : onFrames) std::printf(" %lld", (long long)f);
+        std::printf("  wraps=%d\n", wraps);
+        CHECK(onFrames.size() == 6);
+        if (onFrames.size() == 6) {
+            CHECK(onFrames[0] == 100 && onFrames[1] == 100 + sr / 2);
+            CHECK(onFrames[2] == 100 + sr && onFrames[3] == 100 + sr + sr / 2);
+            CHECK(onFrames[4] == 100 + 2 * sr);
+        }
+        CHECK(wraps == 2);
+        CHECK(seq.playing());  // looping never finishes on its own
+    }
     std::printf(failures ? "%d check(s) failed\n" : "all checks passed\n", failures);
     return failures ? 1 : 0;
 }

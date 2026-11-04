@@ -23,6 +23,8 @@ public:
         delete pending_.exchange(events);
     }
     void play(int64_t startFrame) { startFrame_.store(startFrame); playRequested_.store(true); }
+    // Loop [start, end) seconds of the sequence; end <= start disables looping. Takes effect at the next wrap check.
+    void setLoop(double startSeconds, double endSeconds) { loopStart_.store(startSeconds); loopEnd_.store(endSeconds); }
     void stop() { stopRequested_.store(true); }
     bool playing() const { return playing_.load(); }
     double positionSeconds() const { return positionSeconds_.load(); }
@@ -44,7 +46,7 @@ public:
             int64_t start = startFrame_.load();
             positionSeconds_.store(double(blockStart + frames - start) / sampleRate);
             // Finished: all events sent and the last one is a second behind us.
-            if (current_ && index_ >= int(current_->size())) {
+            if (current_ && index_ >= int(current_->size()) && loopEnd_.load() <= loopStart_.load()) {
                 double last = current_->empty() ? 0.0 : current_->back().seconds;
                 if (double(blockStart - start) / sampleRate > last + 1.0) playing_.store(false);
             }
@@ -54,17 +56,38 @@ public:
     }
     bool takeAllNotesOff() { bool v = allOff_; allOff_ = false; return v; }
 
-    // Absolute frame of the next event, or INT64_MAX.
+    // Absolute frame of the next event or loop wrap, or INT64_MAX.
     int64_t nextEventFrame() const {
-        if (!playing_.load() || !current_ || index_ >= int(current_->size())) return INT64_MAX;
-        return startFrame_.load() + int64_t((*current_)[index_].seconds * sampleRate_ + 0.5);
+        if (!playing_.load()) return INT64_MAX;
+        int64_t next = (current_ && index_ < int(current_->size()))
+            ? startFrame_.load() + int64_t((*current_)[index_].seconds * sampleRate_ + 0.5) : INT64_MAX;
+        return std::min(next, loopWrapFrame());
     }
-    // Pops every event at or before `frame`.
-    template <class F> void dispatchUpTo(int64_t frame, F&& f) {
-        while (nextEventFrame() <= frame) f((*current_)[index_++]);
+    // Pops every event at or before `frame`; `onWrap` is called when the loop jumps back (all notes off).
+    template <class F, class W> void dispatchUpTo(int64_t frame, F&& f, W&& onWrap) {
+        while (true) {
+            int64_t wrap = loopWrapFrame();
+            int64_t next = nextEventFrame();
+            if (next > frame) return;
+            if (next == wrap) {
+                double start = loopStart_.load(), end = loopEnd_.load();
+                startFrame_.store(startFrame_.load() + int64_t((end - start) * sampleRate_ + 0.5));
+                index_ = 0;
+                if (current_) while (index_ < int(current_->size()) && (*current_)[index_].seconds < start) ++index_;
+                onWrap();
+            } else {
+                f((*current_)[index_++]);
+            }
+        }
     }
 
 private:
+    int64_t loopWrapFrame() const {
+        double start = loopStart_.load(), end = loopEnd_.load();
+        if (end <= start) return INT64_MAX;
+        return startFrame_.load() + int64_t(end * sampleRate_ + 0.5);
+    }
+    std::atomic<double> loopStart_{0.0}, loopEnd_{0.0};
     std::vector<SeqEvent>* current_ = nullptr;
     std::atomic<std::vector<SeqEvent>*> pending_{nullptr};
     std::vector<SeqEvent>* retired_ = nullptr;

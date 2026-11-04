@@ -32,6 +32,13 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
 - **Abspielen & Mixer:** Noten werden mit einem SoundFont-Synth (TinySoundFont, Auszug aus GeneralUser GS)
   sample-genau zum Metronom abgespielt. Pro Instrument Lautstärke, Stumm und Solo; „Ich spiele …“ plus
   „Nur ich“ / „Alle außer mir“ als Schnellwahl für jedes Handy.
+- **Noten-Editor** (Stift-Symbol im Noten-Bildschirm): Pianoroll für Bass/Gitarre/Gesang, Raster mit einer
+  Zeile pro Pad fürs Schlagzeug. Tippen zeichnet/wählt/löscht (Werkzeug wählbar), lange drücken und ziehen
+  verschiebt oder verlängert (rechter Rand), Notenwerte 1/2 bis 1/32 auch als Triole, Zoom, Undo/Redo,
+  Quantisieren (Auswahl oder alles). Unten eine kompakte Klaviatur (2 Oktaven, Oktav-Schalter) bzw. 16
+  Drumpads, frei belegbar („Pads belegen“). **Einspielen** mit Vorzähler und Metronom, optional als Loop
+  über Takte, Ersetzen oder Overdub, Quantisierung mit Raster und Stärke; **Schritt-Eingabe** setzt Noten
+  am Cursor. Die Latenz zwischen Tippen und Klang wird mit „Im Takt tippen“ kalibriert und herausgerechnet.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale

@@ -10,3 +10,6 @@
 348	11098	1793812278334876579	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5fc31ed72fd25103
 346	11162	1793812278394876578	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	ae587e9263f391b6
 11163	15137	1793812282378876487	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/arm64-v8a/libsetlistaudio.so	81335d32fbe41492
+7	1194	1793813156914856484	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5fc31ed72fd25103
+3	1295	1793813157018856482	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	ae587e9263f391b6
+1295	1365	1793813157086856480	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/arm64-v8a/libsetlistaudio.so	81335d32fbe41492

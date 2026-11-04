@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -107,7 +108,7 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Noch keine Noten", style = MaterialTheme.typography.titleMedium)
-                            Text("Importiere eine MIDI-Datei (.mid) – pro Spur wählst du dann, welches Instrument sie spielt.")
+                            Text("Importiere eine MIDI-Datei (.mid) – pro Spur wählst du dann, welches Instrument sie spielt – oder spiele die Noten selbst ein.")
                             OutlinedButton(onClick = pickFile) {
                                 Icon(Icons.Default.FileOpen, null); Spacer(Modifier.width(8.dp)); Text("MIDI-Datei wählen")
                             }
@@ -117,7 +118,18 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
             } else {
                 item { MixPresets(vm, score) }
                 itemsIndexed(score.parts) { _, part ->
-                    PartCard(vm, score, part.instrument, part.name, part.notes.size)
+                    PartCard(vm, score, part.instrument, part.name, part.notes.size, onEdit = { vm.openEditor(setlistId, song, part.instrument) })
+                }
+            }
+            item {
+                val missing = Instrument.entries.filter { inst -> score?.parts?.none { it.instrument == inst } ?: true }
+                if (missing.isNotEmpty()) {
+                    Text("Stimme hinzufügen", style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        missing.forEach { inst ->
+                            FilterChip(selected = false, onClick = { vm.openEditor(setlistId, song, inst) }, label = { Text("+ ${inst.label}") })
+                        }
+                    }
                 }
             }
         }
@@ -153,7 +165,7 @@ private fun MixPresets(vm: MainViewModel, score: Score) {
 }
 
 @Composable
-private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, name: String, noteCount: Int) {
+private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, name: String, noteCount: Int, onEdit: () -> Unit) {
     val gain = vm.partGain[instrument] ?: 1f
     val muted = vm.partMuted[instrument] == true
     val solo = vm.solo == instrument
@@ -169,6 +181,7 @@ private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, na
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Noten bearbeiten") }
                 FilterChip(selected = solo, onClick = { vm.toggleSolo(score, instrument) }, label = { Text("Solo") })
                 Spacer(Modifier.width(6.dp))
                 IconButton(onClick = { vm.toggleMute(score, instrument) }) {

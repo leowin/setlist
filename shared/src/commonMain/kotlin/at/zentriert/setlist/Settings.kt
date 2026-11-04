@@ -11,6 +11,15 @@ data class PerformSettings(
     /** Which part this phone's owner plays; drives the quick mix choices. */
     val myInstrument: Instrument? = null,
     val mixMode: MixMode = MixMode.ALL,
+    /** Total tap→sound delay from the calibration; -1 = not calibrated yet. */
+    val inputLatencyMs: Int = -1,
+    val quantizeOn: Boolean = true,
+    val quantizeDivision: Int = 16,
+    val quantizeStrength: Float = 1f,
+    val noteDivision: Int = 8,
+    val noteTriplet: Boolean = false,
+    /** Recording replaces what is in the recorded range (true) or adds to it (false). */
+    val recordReplace: Boolean = false,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -30,6 +39,13 @@ class SettingsStore(private val store: KeyValueStore) {
         countInBars = store.getInt("countInBars", 1),
         myInstrument = Instrument.entries.getOrNull(store.getInt("myInstrument", -1)),
         mixMode = MixMode.entries.getOrNull(store.getInt("mixMode", 0)) ?: MixMode.ALL,
+        inputLatencyMs = store.getInt("inputLatencyMs", -1),
+        quantizeOn = store.getBoolean("quantizeOn", true),
+        quantizeDivision = store.getInt("quantizeDivision", 16),
+        quantizeStrength = store.getFloat("quantizeStrength", 1f),
+        noteDivision = store.getInt("noteDivision", 8),
+        noteTriplet = store.getBoolean("noteTriplet", false),
+        recordReplace = store.getBoolean("recordReplace", false),
     )
 
     fun save(s: PerformSettings) {
@@ -41,5 +57,12 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putInt("countInBars", s.countInBars)
         store.putInt("myInstrument", s.myInstrument?.ordinal ?: -1)
         store.putInt("mixMode", s.mixMode.ordinal)
+        store.putInt("inputLatencyMs", s.inputLatencyMs)
+        store.putBoolean("quantizeOn", s.quantizeOn)
+        store.putInt("quantizeDivision", s.quantizeDivision)
+        store.putFloat("quantizeStrength", s.quantizeStrength)
+        store.putInt("noteDivision", s.noteDivision)
+        store.putBoolean("noteTriplet", s.noteTriplet)
+        store.putBoolean("recordReplace", s.recordReplace)
     }
 }

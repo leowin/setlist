@@ -67,7 +67,7 @@ public:
             if (chunkEnd < frames) {
                 sequencer.dispatchUpTo(blockStart + chunkEnd, [this](const SeqEvent& e) {
                     if (e.velocity) synth.noteOn(e.part, e.key, e.velocity); else synth.noteOff(e.part, e.key);
-                });
+                }, [this] { synth.allNotesOff(); });
             }
             pos = chunkEnd;
         }

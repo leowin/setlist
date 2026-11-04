@@ -10,3 +10,6 @@
 1322	1345	1793812287766876363	libaudiocore.a	22d54bf9f59111d7
 14	1493	1793812287910876360	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	96b57dd1280852b4
 1493	2045	1793812288462876347	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/x86_64/libsetlistaudio.so	e945c6c4182ca684
+4	937	1793813158966856437	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	96b57dd1280852b4
+4	976	1793813159014856436	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	b813eec5f3461e6c
+976	1024	1793813159062856435	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/x86_64/libsetlistaudio.so	e945c6c4182ca684
