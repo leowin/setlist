@@ -15,10 +15,16 @@ kotlin {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }
 
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+    listOf(iosArm64() to "device", iosSimulatorArm64() to "simulator").forEach { (target, variant) ->
         target.binaries.framework {
             baseName = "Shared"
             isStatic = true
+        }
+        // Native audio engine (build with audio/tools/build_ios.sh on a Mac first).
+        target.compilations.getByName("main").cinterops.create("setlistaudio") {
+            definitionFile.set(project.file("src/nativeInterop/cinterop/setlistaudio.def"))
+            includeDirs(project.file("../audio/src/capi"))
+            extraOpts("-libraryPath", project.file("../audio/build-ios/$variant/lib").absolutePath)
         }
     }
 

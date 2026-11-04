@@ -1,0 +1,5 @@
+headers = setlist_audio.h
+headerFilter = setlist_audio.h
+package = at.zentriert.setlist.native
+staticLibraries = libsetlistaudio_ios.a libaudiocore.a
+linkerOpts = -framework AudioToolbox -framework AVFoundation -lc++

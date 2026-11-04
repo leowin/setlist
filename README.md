@@ -70,7 +70,7 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
   den Ordner als Assets aus, iOS bindet ihn als Bundle-Ressource ein.
 - `server/` – Relay-Server für Bands über Internet (Ktor, WebSocket).
 - `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
-  Android; iOS-Backend folgt. Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
+  Android und CoreAudio-Backend für iOS (C-API + cinterop, siehe `iosApp/README.md`). Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
   Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
 
 ## Bauen

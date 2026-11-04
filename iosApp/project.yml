@@ -9,7 +9,11 @@ targets:
   Setlist:
     type: application
     platform: iOS
-    sources: [iosApp]
+    sources:
+      - iosApp
+      - path: ../shared/web/alphatab
+        type: folder
+        buildPhase: resources
     info:
       path: iosApp/Info.plist
       properties:
@@ -17,6 +21,9 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIRequiresFullScreen: false
+        UIBackgroundModes: [audio]
+        NSLocalNetworkUsageDescription: Setlist sucht andere Band-Mitglieder im WLAN, um Metronom und Noten synchron zu starten.
+        NSBonjourServices: [_setlist._tcp]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: at.zentriert.setlist
@@ -24,6 +31,10 @@ targets:
         OTHER_LDFLAGS: $(inherited) -framework Shared
         ENABLE_USER_SCRIPT_SANDBOXING: false
     preBuildScripts:
+      - name: Build native audio library
+        script: |
+          cd "$SRCROOT/.."
+          [ -f audio/build-ios/device/lib/libsetlistaudio_ios.a ] || ./audio/tools/build_ios.sh
       - name: Build Kotlin shared framework
         script: |
           cd "$SRCROOT/.."

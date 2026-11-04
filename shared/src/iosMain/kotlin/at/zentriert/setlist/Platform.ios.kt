@@ -17,7 +17,7 @@ import platform.UIKit.UIScreen
 actual fun currentTimeMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
 @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-actual fun monotonicNanos(): Long = platform.posix.clock_gettime_nsec_np(platform.posix.CLOCK_MONOTONIC).toLong()
+actual fun monotonicNanos(): Long = platform.posix.clock_gettime_nsec_np(platform.posix.CLOCK_UPTIME_RAW).toLong()
 
 actual fun todayLabel(): String =
     NSDateFormatter().apply { dateStyle = NSDateFormatterMediumStyle }.stringFromDate(NSDate())
