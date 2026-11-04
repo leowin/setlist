@@ -201,6 +201,12 @@ class MainViewModel(
     var metronomePosition by mutableStateOf<MetronomePosition?>(null)
         private set
     private var positionPoller: Job? = null
+    private var metronomeNumerator = 4
+
+    private fun applyTransport(config: TransportConfig) {
+        metronomeNumerator = config.numerator
+        audio.setTransport(config)
+    }
 
     fun tempoFor(song: Song?): TempoEdit {
         val base = TempoEdit.of(score(song)) ?: TempoEdit.DEFAULT
@@ -218,14 +224,13 @@ class MainViewModel(
 
     fun startMetronome(song: Song?) {
         audio.setClickVolume(settings.clickVolume)
-        audio.setTransport(transportFor(song))
+        applyTransport(transportFor(song))
         audio.startMetronome()
         metronomeOn = true
         positionPoller?.cancel()
         positionPoller = viewModelScope.launch {
-            val numerator = transportFor(song).numerator
             while (isActive) {
-                metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, numerator) }
+                metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, metronomeNumerator) }
                 delay(16)
             }
         }
@@ -244,7 +249,16 @@ class MainViewModel(
     fun nudgeTempo(song: Song?, delta: Double) {
         val bpm = (tempoFor(song).bpm + delta).coerceIn(Score.MIN_BPM, Score.MAX_BPM)
         performBpm = bpm
-        if (metronomeOn) audio.setTransport(transportFor(song))
+        if (metronomeOn) applyTransport(transportFor(song))
+    }
+
+    /** Tempo/meter edited from the concert view: saved into the song's score right away. */
+    fun setTempo(setlistId: String, song: Song, tempo: TempoEdit) {
+        saveSong(setlistId, song, tempo)
+        performBpm = null
+        if (metronomeOn) {
+            applyTransport(TransportConfig(tempo.bpm, tempo.numerator, tempo.denominator, settings.subdivision, settings.countInBars))
+        }
     }
 
     /** Saves the nudged tempo into the song's score (shared with the library). */
@@ -265,7 +279,7 @@ class MainViewModel(
     /** Metronome settings changed while it runs are applied immediately. */
     fun updateMetronomeSettings(song: Song?, transform: (PerformSettings) -> PerformSettings) {
         updateSettings(transform)
-        if (metronomeOn) audio.setTransport(transportFor(song))
+        if (metronomeOn) applyTransport(transportFor(song))
     }
 
     fun changeFontSize(delta: Float) = updateSettings {

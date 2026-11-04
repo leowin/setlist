@@ -1,6 +1,7 @@
 package at.zentriert.setlist.ui.metronome
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,8 @@ import androidx.compose.ui.unit.sp
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.Setlist
 import at.zentriert.setlist.Song
+import at.zentriert.setlist.TempoEdit
+import at.zentriert.setlist.ui.TempoEditor
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.ui.Amber
 
@@ -80,6 +83,7 @@ fun BeatBackground(position: MetronomePosition?, numerator: Int) {
 fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
     val tempo = vm.tempoFor(song)
     var showSettings by remember { mutableStateOf(false) }
+    var editTempo by remember { mutableStateOf(false) }
 
     Row(
         Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
@@ -99,7 +103,11 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
             Text("Metronom", fontSize = 16.sp)
         }
         IconButton(onClick = { vm.nudgeTempo(song, -1.0) }) { Icon(Icons.Default.Remove, "Langsamer", tint = DimColor) }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Tap the tempo to edit BPM and meter for this song.
+        Column(
+            Modifier.clickable(enabled = song != null) { editTempo = true }.padding(horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text("♩ ${tempo.label}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             if (!vm.hasOwnTempo(song)) {
                 Text(
@@ -118,6 +126,27 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
     }
 
     if (showSettings) MetronomeSettingsDialog(vm, song, onDismiss = { showSettings = false })
+    if (editTempo && song != null) {
+        TempoDialog(
+            initial = tempo,
+            onSave = { vm.setTempo(setlist.id, song, it); editTempo = false },
+            onDismiss = { editTempo = false },
+        )
+    }
+}
+
+@Composable
+private fun TempoDialog(initial: TempoEdit, onSave: (TempoEdit) -> Unit, onDismiss: () -> Unit) {
+    var tempo by remember { mutableStateOf<TempoEdit?>(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Tempo & Taktart") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { TempoEditor(tempo, onChange = { tempo = it ?: initial }) } },
+        confirmButton = {
+            TextButton(onClick = { tempo?.let(onSave) }, enabled = tempo != null) { Text("Speichern") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
 }
 
 @Composable
