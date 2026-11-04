@@ -51,6 +51,8 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Host-Zeitpunkt gesendet und jedes Handy plant ihn sample-genau über die Zeitstempel seines
   Audio-Streams. Eine einstellbare Startverzögerung gleicht z. B. Bluetooth-Kopfhörer aus, und der
   Sync-Test lässt alle Handys jede Sekunde gemeinsam klicken und blinken.
+- **Band über Internet:** Ein kleiner Relay-Server (`server/`, Docker/Cloud Run) verbindet Bands an
+  getrennten Orten über Räume mit Code; der Server ist die gemeinsame Uhr. Siehe `server/README.md`.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
@@ -66,6 +68,7 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
 - `iosApp/` – iOS-Einstieg (Swift + XcodeGen-Spec), siehe `iosApp/README.md`.
 - `shared/web/alphatab/` – alphaTab (MPL-2.0) samt Bravura-Schrift (OFL) für das Notenbild; Android liefert
   den Ordner als Assets aus, iOS bindet ihn als Bundle-Ressource ein.
+- `server/` – Relay-Server für Bands über Internet (Ktor, WebSocket).
 - `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
   Android; iOS-Backend folgt. Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
   Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.

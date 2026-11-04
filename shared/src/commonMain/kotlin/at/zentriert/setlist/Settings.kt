@@ -28,6 +28,9 @@ data class PerformSettings(
     /** Name shown to the band; extra delay applied to synced starts (e.g. for Bluetooth headphones). */
     val bandName: String = "",
     val syncOffsetMs: Int = 0,
+    /** Cloud relay (server/): WebSocket address and the last room code. */
+    val serverUrl: String = "",
+    val roomCode: String = "",
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -59,6 +62,8 @@ class SettingsStore(private val store: KeyValueStore) {
         performNotation = store.getBoolean("performNotation", false),
         bandName = store.getString("bandName", ""),
         syncOffsetMs = store.getInt("syncOffsetMs", 0),
+        serverUrl = store.getString("serverUrl", ""),
+        roomCode = store.getString("roomCode", ""),
     )
 
     fun save(s: PerformSettings) {
@@ -82,5 +87,7 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putBoolean("performNotation", s.performNotation)
         store.putString("bandName", s.bandName)
         store.putInt("syncOffsetMs", s.syncOffsetMs)
+        store.putString("serverUrl", s.serverUrl)
+        store.putString("roomCode", s.roomCode)
     }
 }

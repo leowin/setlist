@@ -121,6 +121,26 @@ fun BandScreen(vm: MainViewModel) {
                         Spacer(Modifier.width(8.dp))
                         OutlinedButton(onClick = { if (manualHost.isNotBlank()) vm.joinBand(manualHost.trim()) }) { Text("Verbinden") }
                     }
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Über Internet (Relay-Server)", style = MaterialTheme.typography.titleMedium)
+                            OutlinedTextField(
+                                value = settings.serverUrl,
+                                onValueChange = { v -> vm.updateSettings { it.copy(serverUrl = v) } },
+                                label = { Text("Server, z. B. wss://…/ws") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = settings.roomCode,
+                                onValueChange = { v -> vm.updateSettings { it.copy(roomCode = v.uppercase()) } },
+                                label = { Text("Raum-Code (frei wählbar)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { vm.joinCloud(asHost = true) }, modifier = Modifier.weight(1f)) { Text("Raum hosten") }
+                                OutlinedButton(onClick = { vm.joinCloud(asHost = false) }, modifier = Modifier.weight(1f)) { Text("Beitreten") }
+                            }
+                            if (vm.bandStatus.isNotEmpty()) Text(vm.bandStatus, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
                 else -> {
                     Card(Modifier.fillMaxWidth()) {

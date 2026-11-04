@@ -1,8 +1,8 @@
 if(NOT TARGET oboe::oboe)
 add_library(oboe::oboe SHARED IMPORTED)
 set_target_properties(oboe::oboe PROPERTIES
-    IMPORTED_LOCATION "/root/.gradle/caches/8.14.3/transforms/dcffea00f04bca13fb1791be64ef4ab8/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.x86_64/liboboe.so"
-    INTERFACE_INCLUDE_DIRECTORIES "/root/.gradle/caches/8.14.3/transforms/dcffea00f04bca13fb1791be64ef4ab8/transformed/oboe-1.9.3/prefab/modules/oboe/include"
+    IMPORTED_LOCATION "/root/.gradle/caches/8.14.3/transforms/7409cd488590cb8e9cd41a6350a034e0/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.x86_64/liboboe.so"
+    INTERFACE_INCLUDE_DIRECTORIES "/root/.gradle/caches/8.14.3/transforms/7409cd488590cb8e9cd41a6350a034e0/transformed/oboe-1.9.3/prefab/modules/oboe/include"
     INTERFACE_LINK_LIBRARIES ""
 )
 endif()

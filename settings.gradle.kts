@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "Setlist"
 include(":shared")
 include(":androidApp")
+include(":server")

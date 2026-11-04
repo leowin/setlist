@@ -26,6 +26,12 @@ sealed class Msg {
     @Serializable data class SyncTest(val on: Boolean) : Msg()
     @Serializable data class Bye(val reason: String = "") : Msg()
 
+    // Cloud relay only (server/): rooms and the server clock.
+    @Serializable data class Join(val room: String, val name: String, val host: Boolean, val instrument: Instrument? = null) : Msg()
+    @Serializable data class Joined(val room: String, val isHost: Boolean, val hostPresent: Boolean) : Msg()
+    @Serializable data class Ping(val t1: Long) : Msg()
+    @Serializable data class Pong(val t1: Long, val t2: Long, val t3: Long) : Msg()
+
     companion object {
         val json = Json { ignoreUnknownKeys = true; classDiscriminator = "t" }
         fun encode(msg: Msg): String = json.encodeToString(serializer(), msg)

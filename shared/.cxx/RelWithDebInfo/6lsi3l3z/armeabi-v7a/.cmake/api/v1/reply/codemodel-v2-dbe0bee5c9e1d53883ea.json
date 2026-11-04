@@ -41,14 +41,14 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "audiocore::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-audiocore-RelWithDebInfo-9aee38173c069e0910c6.json",
+					"jsonFile" : "target-audiocore-RelWithDebInfo-1e7d1ebb9e4a3e05d41f.json",
 					"name" : "audiocore",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "setlistaudio::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-setlistaudio-RelWithDebInfo-b4ec8000223351a0d6fb.json",
+					"jsonFile" : "target-setlistaudio-RelWithDebInfo-8eef7f3c71677b8c6f59.json",
 					"name" : "setlistaudio",
 					"projectIndex" : 0
 				}
@@ -58,7 +58,7 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a",
+		"build" : "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/armeabi-v7a",
 		"source" : "/home/user/setlist/audio"
 	},
 	"version" : 

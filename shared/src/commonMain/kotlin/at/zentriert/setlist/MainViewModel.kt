@@ -12,7 +12,9 @@ import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.audio.TransportConfig
 import at.zentriert.setlist.band.BandEvent
+import at.zentriert.setlist.band.BandLink
 import at.zentriert.setlist.band.BandSession
+import at.zentriert.setlist.band.CloudSession
 import at.zentriert.setlist.band.Msg
 import at.zentriert.setlist.band.Role
 import kotlinx.coroutines.Dispatchers
@@ -298,9 +300,9 @@ class MainViewModel(
         applyTransport(transportFor(song))
         if (bandRole == Role.HOST) {
             val t = transportFor(song)
-            val at = monotonicNanos() + START_LEAD_NANOS
+            val at = referenceNow(START_LEAD_NANOS)
             band?.broadcast(Msg.Start(at, null, 0, t.bpm, t.numerator, t.denominator, t.subdivision, t.countInBars, true))
-            audio.playAt(at, withMetronome = true, metronomeOnly = true)
+            audio.playAt(hostToLocal(at), withMetronome = true, metronomeOnly = true)
         } else audio.startMetronome()
         metronomeOn = true
         positionPoller?.cancel()
@@ -314,7 +316,7 @@ class MainViewModel(
 
     fun stopMetronome() {
         if (!metronomeOn && positionPoller == null) return
-        if (bandRole == Role.HOST && metronomeOn) band?.broadcast(Msg.Stop(monotonicNanos()))
+        if (bandRole == Role.HOST && metronomeOn) band?.broadcast(Msg.Stop(referenceNow(0)))
         audio.stopMetronome()
         positionPoller?.cancel()
         positionPoller = null
@@ -436,7 +438,7 @@ class MainViewModel(
 
     fun stopPlayback() {
         if (!playing) return
-        if (bandRole == Role.HOST && screen is Screen.Perform) band?.broadcast(Msg.Stop(monotonicNanos()))
+        if (bandRole == Role.HOST && screen is Screen.Perform) band?.broadcast(Msg.Stop(referenceNow(0)))
         audio.stopPlayback()
         finishPlayback()
     }
@@ -446,9 +448,9 @@ class MainViewModel(
         val score = score(song) ?: return
         if (score.parts.none { it.notes.isNotEmpty() }) return startMetronome(song)
         if (bandRole == Role.HOST) {
-            val at = monotonicNanos() + START_LEAD_NANOS
+            val at = referenceNow(START_LEAD_NANOS)
             band?.broadcast(Msg.Start(at, score.id, 0, score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, settings.countInBars, true))
-            playScore(score, 0, withMetronome = true, atNanos = at)
+            playScore(score, 0, withMetronome = true, atNanos = hostToLocal(at))
         } else playScore(score, 0, withMetronome = true)
     }
 
@@ -682,7 +684,7 @@ class MainViewModel(
 
     // --- band (WLAN sync) ---
 
-    private var band: BandSession? = null
+    private var band: BandLink? = null
     var bandRole by mutableStateOf<Role?>(null)
         private set
     var bandStatus by mutableStateOf("")
@@ -726,6 +728,23 @@ class MainViewModel(
         session.join(host, port, settings.myInstrument)
     }
 
+    /** Band over the internet via the relay server; the first to host a room leads it. */
+    fun joinCloud(asHost: Boolean) {
+        val url = settings.serverUrl.trim()
+        val room = settings.roomCode.trim().uppercase()
+        if (url.isEmpty() || room.isEmpty()) { bandStatus = "Server-Adresse und Raum-Code eintragen"; return }
+        leaveBand()
+        val session = CloudSession(url, room, bandName(), asHost, settings.myInstrument) { event ->
+            if (event is BandEvent.Status) viewModelScope.launch(Dispatchers.Main) { bandRole = (band as? CloudSession)?.role }
+            onBandEvent(event)
+        }
+        band = session
+        bandRole = if (asHost) Role.HOST else Role.MEMBER
+        bandStatus = "Verbinde …"
+        session.connect()
+        if (asHost) (screen as? Screen.Perform)?.let { shareSetlist(it.setlistId) }
+    }
+
     fun leaveBand() {
         if (syncTest) stopSyncTest()
         discovery?.stopAdvertising()
@@ -750,11 +769,14 @@ class MainViewModel(
                 is BandEvent.Status -> bandStatus = event.text
                 is BandEvent.Peers -> bandPeers = event.names
                 is BandEvent.Clock -> clockInfo = event
-                is BandEvent.Ended -> { bandStatus = event.reason; if (bandRole == Role.MEMBER) { band = null; bandRole = null; clockInfo = null } }
+                is BandEvent.Ended -> { bandStatus = event.reason; if (bandRole == Role.MEMBER || band is CloudSession) { band = null; bandRole = null; clockInfo = null } }
                 is BandEvent.Message -> handleBandMessage(event.msg)
             }
         }
     }
+
+    /** Reference clock (host over WLAN, server in the cloud) [leadNanos] from now. */
+    private fun referenceNow(leadNanos: Long): Long = (band?.clock?.toHost(monotonicNanos()) ?: monotonicNanos()) + leadNanos
 
     private fun hostToLocal(hostNanos: Long): Long =
         (band?.clock?.toLocal(hostNanos) ?: hostNanos) + settings.syncOffsetMs * 1_000_000L

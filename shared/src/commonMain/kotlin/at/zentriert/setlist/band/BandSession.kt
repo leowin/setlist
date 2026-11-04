@@ -30,6 +30,16 @@ import kotlinx.io.readByteArray
 
 enum class Role { HOST, MEMBER }
 
+/** What the view model needs from a band connection, whether over WLAN or the cloud relay. */
+interface BandLink {
+    val role: Role?
+    /** Estimate of the reference clock (the host over WLAN, the server in the cloud). */
+    val clock: ClockSync
+    fun broadcast(msg: Msg)
+    fun send(msg: Msg)
+    fun close()
+}
+
 /** What the session reports back to the view model (always on the session's own scope). */
 sealed class BandEvent {
     data class Status(val text: String) : BandEvent()
@@ -43,11 +53,11 @@ sealed class BandEvent {
  * One band session: the host accepts members over TCP (JSON lines) and answers clock-sync
  * datagrams over UDP; members keep a [ClockSync] estimate of the host's clock.
  */
-class BandSession(private val myName: String, private val onEvent: (BandEvent) -> Unit) {
+class BandSession(private val myName: String, private val onEvent: (BandEvent) -> Unit) : BandLink {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val selector = SelectorManager(Dispatchers.Default)
-    var role: Role? = null; private set
-    val clock = ClockSync()
+    override var role: Role? = null; private set
+    override val clock = ClockSync()
 
     // host side
     private var server: ServerSocket? = null
@@ -126,7 +136,7 @@ class BandSession(private val myName: String, private val onEvent: (BandEvent) -
     }
 
     /** Host → all members. Remembers the setlist so late joiners get it too. */
-    fun broadcast(msg: Msg) {
+    override fun broadcast(msg: Msg) {
         if (msg is Msg.SetlistSync) lastSetlist = msg
         scope.launch {
             val line = Msg.encode(msg) + "\n"
@@ -187,12 +197,12 @@ class BandSession(private val myName: String, private val onEvent: (BandEvent) -
     }
 
     /** Member → host. */
-    fun send(msg: Msg) {
+    override fun send(msg: Msg) {
         val w = writer ?: return
         scope.launch { runCatching { w.writeStringUtf8(Msg.encode(msg) + "\n") } }
     }
 
-    fun close() {
+    override fun close() {
         scope.launch {
             runCatching { writer?.writeStringUtf8(Msg.encode(Msg.Bye()) + "\n") }
             runCatching { broadcast(Msg.Bye("Host hat die Band beendet")) }

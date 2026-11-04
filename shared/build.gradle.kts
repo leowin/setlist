@@ -36,6 +36,9 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             api(libs.kotlinx.io.core)
             implementation(libs.ktor.network)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.websockets)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
