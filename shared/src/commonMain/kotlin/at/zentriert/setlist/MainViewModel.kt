@@ -425,11 +425,16 @@ class MainViewModel(
         metronomeOn = withMetronome
         playbackPoller?.cancel()
         playbackPoller = viewModelScope.launch {
+            // The audio thread picks the start up on its next block; don't mistake that gap for "finished".
+            val startedAt = currentTimeMillis()
+            var seen = false
             while (isActive) {
                 val pos = audio.positionSeconds()
                 if (pos == null) {
-                    if (!audio.playing && audio.positionBeats() == null) { finishPlayback(); break }
+                    val engineIdle = !audio.playing && audio.positionBeats() == null
+                    if (engineIdle && (seen || currentTimeMillis() - startedAt > 1500 + (atNanos?.let { (it - monotonicNanos()) / 1_000_000 } ?: 0))) { finishPlayback(); break }
                 } else {
+                    seen = true
                     playbackTick = ScorePlayback.tickAt(score, fromTick, offset, pos)
                 }
                 metronomePosition = audio.positionBeats()?.let { MetronomePosition.fromBeats(it, metronomeNumerator) }

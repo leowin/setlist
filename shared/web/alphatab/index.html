@@ -42,6 +42,8 @@
   const el = document.getElementById('at');
   window.api_ref = () => api; const api = new alphaTab.AlphaTabApi(el, settings);
   let beats = [];   // flattened beat bounds of the first staff for the cursor
+  let lastTick = null;
+  let lastLineY = -1;
 
   api.renderFinished.on(() => {
     document.getElementById('msg').textContent = '';
@@ -51,6 +53,9 @@
       const bar = mb.bars[0]; if (!bar) continue;
       for (const b of bar.beats) beats.push({ start: b.beat.absolutePlaybackStart, end: b.beat.absolutePlaybackStart + b.beat.playbackDuration, x: b.visualBounds.x, w: b.visualBounds.w, y: mb.visualBounds.y, h: mb.visualBounds.h });
     }
+    // Re-render (zoom, theme): put the cursor back where it was, without scrolling around.
+    lastLineY = -1;
+    if (lastTick !== null) window.setCursor(lastTick, true);
     bridge().onRendered();
   });
   api.error.on(e => {
@@ -75,15 +80,19 @@
       || beats.filter(b => y >= b.y && y <= b.y + b.h).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
     if (hit) bridge().onBeatTapped(hit.start);
   });
-  window.setCursor = (tick) => {
+  // Keeps the line that holds the cursor at the top of the view so as much as possible follows below.
+  window.setCursor = (tick, instant) => {
     const c = document.getElementById('cursor');
-    if (tick === null || tick === undefined || tick < 0) { c.style.display = 'none'; return; }
+    lastTick = (tick === null || tick === undefined || tick < 0) ? null : tick;
+    if (lastTick === null) { c.style.display = 'none'; lastLineY = -1; return; }
     const b = beats.find(b => tick >= b.start && tick < b.end);
     if (!b) { c.style.display = 'none'; return; }
     c.style.display = 'block';
     c.style.left = b.x + 'px'; c.style.top = b.y + 'px'; c.style.width = Math.max(b.w, 8) + 'px'; c.style.height = b.h + 'px';
-    const top = window.scrollY, bottom = top + window.innerHeight;
-    if (b.y < top + 40 || b.y + b.h > bottom - 40) window.scrollTo({ top: Math.max(0, b.y - window.innerHeight / 3), behavior: 'smooth' });
+    if (b.y !== lastLineY) {
+      lastLineY = b.y;
+      window.scrollTo({ top: Math.max(0, b.y - 6), behavior: instant ? 'auto' : 'smooth' });
+    }
   };
 </script>
 </body>

@@ -66,6 +66,8 @@ import at.zentriert.setlist.StageEffects
 import at.zentriert.setlist.NotationView
 import at.zentriert.setlist.notation.AlphaTex
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.DarkMode
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.ui.metronome.BeatBackground
 import at.zentriert.setlist.ui.metronome.MetronomeBar
@@ -102,6 +104,8 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                 onKeepOn = { vm.updateSettings { it.copy(keepScreenOn = !it.keepScreenOn) } },
                 onScreenOff = vm::screenOff,
                 onNotation = { vm.updateSettings { it.copy(performMode = (it.performMode + 1) % 3) } },
+                notesShown = notesShown,
+                onLight = { vm.updateSettings { it.copy(notationLight = !it.notationLight) } },
             )
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val upcoming = (1..settings.nextCount).map { songs.getOrNull(index + it) }
@@ -202,6 +206,8 @@ private fun TopStrip(
     onKeepOn: () -> Unit,
     onScreenOff: () -> Unit,
     onNotation: () -> Unit,
+    notesShown: Boolean,
+    onLight: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Beenden", tint = DimColor) }
@@ -230,6 +236,9 @@ private fun TopStrip(
         TextButton(onClick = onNotation) {
             Icon(Icons.Default.LibraryMusic, null, tint = if (settings.performMode > 0) Amber else DimColor)
             Text(when (settings.performMode) { 1 -> " Noten"; 2 -> " Beides"; else -> " Notizen" }, color = DimColor, fontSize = 12.sp)
+        }
+        if (notesShown) IconButton(onClick = onLight) {
+            Icon(if (settings.notationLight) Icons.Default.DarkMode else Icons.Default.LightMode, "Noten hell/dunkel", tint = DimColor)
         }
         IconButton(onClick = onKeepOn) {
             Icon(

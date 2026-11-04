@@ -23,6 +23,10 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -194,28 +198,40 @@ private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: (
                     onValueChange = { v -> vm.updateSettings { it.copy(clickVolume = v) } },
                     valueRange = 0f..1f,
                 )
-                Text("Unterteilung")
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(1 to "Aus", 2 to "Achtel", 3 to "Triolen", 4 to "16tel").forEach { (value, label) ->
-                        FilterChip(
-                            selected = settings.subdivision == value,
-                            onClick = { vm.updateMetronomeSettings(song) { it.copy(subdivision = value) } },
-                            label = { Text(label) },
-                        )
-                    }
-                }
-                Text("Vorzähler")
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(0 to "Keiner", 1 to "1 Takt", 2 to "2 Takte").forEach { (value, label) ->
-                        FilterChip(
-                            selected = settings.countInBars == value,
-                            onClick = { vm.updateMetronomeSettings(song) { it.copy(countInBars = value) } },
-                            label = { Text(label) },
-                        )
-                    }
-                }
+                Dropdown(
+                    label = "Unterteilung",
+                    options = listOf(1 to "Nur Schläge", 2 to "Achtel", 3 to "Triolen", 4 to "Sechzehntel"),
+                    selected = settings.subdivision,
+                    onSelect = { v -> vm.updateMetronomeSettings(song) { it.copy(subdivision = v) } },
+                )
+                Dropdown(
+                    label = "Vorzähler",
+                    options = listOf(0 to "Keiner", 1 to "1 Takt", 2 to "2 Takte"),
+                    selected = settings.countInBars,
+                    onSelect = { v -> vm.updateMetronomeSettings(song) { it.copy(countInBars = v) } },
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },
     )
+}
+
+/** Label above a button that opens a list of choices. */
+@Composable
+fun <T> Dropdown(label: String, options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Column {
+        Text(label, fontSize = 12.sp, color = DimColor)
+        Box {
+            OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(options.firstOrNull { it.first == selected }?.second ?: "–", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.ArrowDropDown, null)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { (value, text) ->
+                    DropdownMenuItem(text = { Text(text) }, onClick = { onSelect(value); open = false })
+                }
+            }
+        }
+    }
 }
