@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Stop
@@ -84,6 +85,7 @@ fun BeatBackground(position: MetronomePosition?, numerator: Int) {
 @Composable
 fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
     val tempo = vm.tempoFor(song)
+    val hasNotes = vm.score(song)?.parts?.any { it.notes.isNotEmpty() } == true
     var showSettings by remember { mutableStateOf(false) }
     var editTempo by remember { mutableStateOf(false) }
 
@@ -93,17 +95,37 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Tune, "Metronom-Einstellungen (Unterteilung, Vorzähler, Lautstärke)", tint = DimColor) }
-        Button(
-            onClick = { vm.toggleMetronome(song) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (vm.metronomeOn) Amber else ButtonGray,
-                contentColor = if (vm.metronomeOn) Color.Black else Color.White,
-            ),
-            modifier = Modifier.fillMaxHeight().padding(vertical = 6.dp),
-        ) {
-            Icon(if (vm.metronomeOn) Icons.Default.Stop else Icons.Default.PlayArrow, null)
-            Spacer(Modifier.width(4.dp))
-            Text("Metronom", fontSize = 16.sp)
+        if (hasNotes) {
+            // With notes the bar drives the playback: notes + metronome (current settings and mixer).
+            Button(
+                onClick = { if (vm.playing) vm.pausePlayback() else vm.performPlay(song) },
+                enabled = vm.soundFontReady,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (vm.playing) Amber else ButtonGray,
+                    contentColor = if (vm.playing) Color.Black else Color.White,
+                ),
+                modifier = Modifier.fillMaxHeight().padding(vertical = 6.dp),
+            ) {
+                Icon(if (vm.playing) Icons.Default.Pause else Icons.Default.PlayArrow, null)
+                Spacer(Modifier.width(4.dp))
+                Text(if (vm.playing) "Pause" else "Play", fontSize = 16.sp)
+            }
+            IconButton(onClick = { vm.stopPlayback(); vm.stopMetronome(); vm.startTick = 0 }, enabled = vm.playing || vm.startTick > 0 || vm.metronomeOn) {
+                Icon(Icons.Default.Stop, "Stop, zum Anfang", tint = DimColor)
+            }
+        } else {
+            Button(
+                onClick = { vm.toggleMetronome(song) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (vm.metronomeOn) Amber else ButtonGray,
+                    contentColor = if (vm.metronomeOn) Color.Black else Color.White,
+                ),
+                modifier = Modifier.fillMaxHeight().padding(vertical = 6.dp),
+            ) {
+                Icon(if (vm.metronomeOn) Icons.Default.Stop else Icons.Default.PlayArrow, null)
+                Spacer(Modifier.width(4.dp))
+                Text("Metronom", fontSize = 16.sp)
+            }
         }
         IconButton(onClick = { vm.nudgeTempo(song, -1.0) }) { Icon(Icons.Default.Remove, "Langsamer", tint = DimColor) }
         // Tap the tempo to edit BPM and meter for this song.
@@ -121,11 +143,6 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
             }
         }
         IconButton(onClick = { vm.nudgeTempo(song, 1.0) }) { Icon(Icons.Default.Add, "Schneller", tint = DimColor) }
-        if (vm.score(song)?.parts?.any { it.notes.isNotEmpty() } == true) {
-            IconButton(onClick = { if (vm.playing) vm.stopPlayback() else vm.performPlay(song) }, enabled = vm.soundFontReady) {
-                Icon(if (vm.playing) Icons.Default.Stop else Icons.Default.PlayArrow, "Noten abspielen", tint = if (vm.playing) Amber else DimColor)
-            }
-        }
         if (vm.bandRole != null) {
             Text(if (vm.bandRole == at.zentriert.setlist.band.Role.HOST) "HOST" else "BAND", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }

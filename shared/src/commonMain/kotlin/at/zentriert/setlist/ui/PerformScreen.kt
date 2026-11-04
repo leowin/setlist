@@ -85,6 +85,8 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
     StageEffects(keepScreenOn = settings.keepScreenOn, blackout = vm.blackout)
 
     BackHandler { if (vm.blackout) vm.screenOn() else vm.edit(setlist.id) }
+    // A−/A+ resize the sheet music while it is on screen, the text otherwise.
+    val notesShown = settings.performMode > 0 && vm.score(songs.getOrNull(index))?.parts?.any { it.notes.isNotEmpty() } == true
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -94,8 +96,8 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                 settings = settings,
                 onClose = { vm.edit(setlist.id) },
                 onPosition = { jumping = true },
-                onSmaller = { vm.changeFontSize(-4f) },
-                onBigger = { vm.changeFontSize(4f) },
+                onSmaller = { if (notesShown) vm.updateSettings { it.copy(notationScale = (it.notationScale / 1.15f).coerceAtLeast(0.6f)) } else vm.changeFontSize(-4f) },
+                onBigger = { if (notesShown) vm.updateSettings { it.copy(notationScale = (it.notationScale * 1.15f).coerceAtMost(2.5f)) } else vm.changeFontSize(4f) },
                 onNextCount = { vm.updateSettings { it.copy(nextCount = (it.nextCount + 1) % 3) } },
                 onKeepOn = { vm.updateSettings { it.copy(keepScreenOn = !it.keepScreenOn) } },
                 onScreenOff = vm::screenOff,
@@ -261,7 +263,9 @@ private fun PerformNotation(vm: MainViewModel, song: Song, score: Score, fontSiz
             overflow = TextOverflow.Ellipsis,
         )
         NotationView(
-            tex, vm.notationCursor(score), settings.notationScale, settings.notationLight,
+            tex,
+            vm.notationCursor(score) ?: (vm.startTick * 960 / score.ppq).takeIf { !vm.playing },
+            settings.notationScale, settings.notationLight,
             onTap = { tick -> vm.jumpTo(score, tick * score.ppq / 960) },
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )

@@ -325,11 +325,15 @@ class MainViewModel(
         metronomePosition = null
     }
 
-    /** ± during the concert; takes effect on the next beat while running. */
+    /** ± during the concert; takes effect on the next beat (metronome) or restarts the notes at the new tempo. */
     fun nudgeTempo(song: Song?, delta: Double) {
         val bpm = (tempoFor(song).bpm + delta).coerceIn(Score.MIN_BPM, Score.MAX_BPM)
         performBpm = bpm
-        if (metronomeOn) applyTransport(transportFor(song))
+        if (playing) {
+            val score = score(song) ?: return
+            pausePlayback()
+            playFromCursor(score)
+        } else if (metronomeOn) applyTransport(transportFor(song))
     }
 
     /** Tempo/meter edited from the concert view: saved into the song's score right away. */
@@ -452,8 +456,13 @@ class MainViewModel(
         stopPlayback()
     }
 
+    /** In the concert view the ± tempo applies to the notes as well. */
+    private fun withPerformTempo(score: Score): Score =
+        if (screen is Screen.Perform) performBpm?.let { score.withTempo(it) } ?: score else score
+
     /** Play from the cursor; a tap on the notation sets the cursor and, while playing, jumps there. */
-    fun playFromCursor(score: Score, withMetronome: Boolean = true) {
+    fun playFromCursor(original: Score, withMetronome: Boolean = true) {
+        val score = withPerformTempo(original)
         val from = startTick.coerceIn(0, ScorePlayback.lastTick(score))
         if (bandRole == Role.HOST && screen is Screen.Perform) {
             val at = referenceNow(START_LEAD_NANOS)
