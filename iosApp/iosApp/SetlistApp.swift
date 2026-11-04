@@ -8,6 +8,8 @@ struct SetlistApp: App {
             ComposeView()
                 .ignoresSafeArea(.all)
                 .preferredColorScheme(.dark)
+                // Band invitations and share links (Associated Domains: applinks:<server host>).
+                .onOpenURL { url in MainViewControllerKt.openLink(url: url.absoluteString) }
         }
     }
 }

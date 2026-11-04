@@ -20,16 +20,18 @@ fun App(vm: MainViewModel) {
             // Re-read on every change so edits show up immediately.
             val data by vm.data.collectAsStateWithLifecycle()
             val scores by vm.scores.collectAsStateWithLifecycle()
-            val setlists = data.setlists
+            val bandId = vm.currentBandId
+            val setlists = data.setlists(bandId)
+            val library = data.library(bandId)
             when (val screen = vm.screen) {
                 Screen.Home -> HomeScreen(vm, setlists)
                 is Screen.Import -> ImportScreen(vm, screen.state)
-                Screen.Library -> LibraryScreen(vm, data.library, scores)
+                Screen.Library -> LibraryScreen(vm, library, scores)
                 Screen.Band -> BandScreen(vm)
-                is Screen.Edit -> setlists.firstOrNull { it.id == screen.setlistId }
-                    ?.let { EditScreen(vm, it, data.library, scores) }
+                is Screen.Edit -> data.setlists.firstOrNull { it.id == screen.setlistId && !it.deleted }
+                    ?.let { EditScreen(vm, it, data.library(it.bandId), scores) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }
-                is Screen.Perform -> setlists.firstOrNull { it.id == screen.setlistId }
+                is Screen.Perform -> data.setlists.firstOrNull { it.id == screen.setlistId && !it.deleted }
                     ?.let { PerformScreen(vm, it) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }
                 is Screen.Notes -> vm.findSong(screen.setlistId, screen.songId)
@@ -50,6 +52,7 @@ fun App(vm: MainViewModel) {
                     } else LaunchedEffect(Unit) { vm.closeNotes(screen.setlistId) }
                 }
             }
+            LinkDialogs(vm)
         }
     }
 }

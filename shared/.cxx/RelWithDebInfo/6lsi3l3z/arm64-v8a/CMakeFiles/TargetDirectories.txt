@@ -1,4 +1,0 @@
-/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a/CMakeFiles/audiocore.dir
-/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a/CMakeFiles/setlistaudio.dir
-/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a/CMakeFiles/edit_cache.dir
-/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/arm64-v8a/CMakeFiles/rebuild_cache.dir

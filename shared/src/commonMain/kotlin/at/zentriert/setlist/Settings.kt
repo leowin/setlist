@@ -27,15 +27,20 @@ data class PerformSettings(
     val performMode: Int = 0,
     val notationLight: Boolean = false,
     /** Name shown to the band; extra delay applied to synced starts (e.g. for Bluetooth headphones). */
-    val bandName: String = "",
+    val myName: String = "",
     val syncOffsetMs: Int = 0,
-    /** Cloud relay (server/): WebSocket address and the last room code. */
-    val serverUrl: String = "",
-    val roomCode: String = "",
+    /** Server (server/) for band sync, share links and the internet relay; https://… */
+    val serverUrl: String = DEFAULT_SERVER,
+    /** Random id of this phone, written as the author of every change it makes. */
+    val deviceId: String = "",
+    /** The band whose songs and setlists are shown; null = private. */
+    val currentBandId: String? = null,
 ) {
     companion object {
         const val MIN_FONT = 18f
         const val MAX_FONT = 96f
+        /** Set after the first deployment (see server/README.md); empty disables the cloud features. */
+        const val DEFAULT_SERVER = ""
     }
 }
 
@@ -62,10 +67,11 @@ class SettingsStore(private val store: KeyValueStore) {
         notationScale = store.getFloat("notationScale", 1.0f),
         performMode = store.getInt("performMode", 0),
         notationLight = store.getBoolean("notationLight", false),
-        bandName = store.getString("bandName", ""),
+        myName = store.getString("myName", store.getString("bandName", "")),
         syncOffsetMs = store.getInt("syncOffsetMs", 0),
-        serverUrl = store.getString("serverUrl", ""),
-        roomCode = store.getString("roomCode", ""),
+        serverUrl = store.getString("serverUrl", PerformSettings.DEFAULT_SERVER),
+        deviceId = store.getString("deviceId", "").ifEmpty { newId().also { store.putString("deviceId", it) } },
+        currentBandId = store.getString("currentBandId", "").ifEmpty { null },
     )
 
     fun save(s: PerformSettings) {
@@ -88,9 +94,10 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putFloat("notationScale", s.notationScale)
         store.putInt("performMode", s.performMode)
         store.putBoolean("notationLight", s.notationLight)
-        store.putString("bandName", s.bandName)
+        store.putString("myName", s.myName)
         store.putInt("syncOffsetMs", s.syncOffsetMs)
         store.putString("serverUrl", s.serverUrl)
-        store.putString("roomCode", s.roomCode)
+        store.putString("deviceId", s.deviceId)
+        store.putString("currentBandId", s.currentBandId.orEmpty())
     }
 }

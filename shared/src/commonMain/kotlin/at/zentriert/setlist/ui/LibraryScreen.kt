@@ -15,9 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import at.zentriert.setlist.ui.band.CopyToBandDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -67,6 +74,7 @@ private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Mod
 fun LibraryScreen(vm: MainViewModel, library: List<Song>, scores: Map<String, Score>) {
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<Song?>(null) }
+    var toCopy by remember { mutableStateOf<Song?>(null) }
 
     BackHandler { vm.goHome() }
 
@@ -120,11 +128,24 @@ fun LibraryScreen(vm: MainViewModel, library: List<Song>, scores: Map<String, Sc
                                     tint = if (scores[song.scoreId]?.parts?.isNotEmpty() == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            SongMenu(
+                                onCopy = { toCopy = song },
+                                onShareLink = if (vm.canShareLinks) ({ vm.shareSongLink(song.id) }) else null,
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    toCopy?.let { song ->
+        CopyToBandDialog(
+            title = "„${song.title}“ kopieren nach …",
+            bands = vm.bands, currentBandId = vm.currentBandId,
+            onPick = { vm.copySongToBand(song.id, it); toCopy = null },
+            onDismiss = { toCopy = null },
+        )
     }
 
     editing?.let { song ->
@@ -138,6 +159,19 @@ fun LibraryScreen(vm: MainViewModel, library: List<Song>, scores: Map<String, Sc
             onMerge = { _, _ -> },
             onDismiss = { editing = null },
         )
+    }
+}
+
+/** ⋮ on a library song: copy into another band, share as link. */
+@Composable
+private fun SongMenu(onCopy: () -> Unit, onShareLink: (() -> Unit)?) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, "Mehr") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("In andere Band kopieren …") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { open = false; onCopy() })
+            if (onShareLink != null) DropdownMenuItem(text = { Text("Als Link teilen …") }, leadingIcon = { Icon(Icons.Default.Link, null) }, onClick = { open = false; onShareLink() })
+        }
     }
 }
 

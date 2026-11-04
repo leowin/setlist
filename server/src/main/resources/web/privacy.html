@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setlist – Datenschutz</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1b1b1f; --bg: #fdfbff; --muted: #5f5f66; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #e5e1ec; --bg: #131318; --muted: #a9a5b3; } }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
+  li { margin: 6px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Was dieser Server speichert</h1>
+  <p>Die Setlist-App hält alle Lieder, Noten und Setlists auf den Handys der Bandmitglieder. Dieser Server ist
+    nur der Austauschpunkt und besitzt keine lesbaren Daten.</p>
+  <ul>
+    <li><b>Verschlüsselte Datenpakete</b> pro Band (Lieder, Noten, Setlists), verschlüsselt mit einem Schlüssel,
+      den nur die Bandmitglieder haben. Der Server kennt weder Bandnamen noch Liedtitel.</li>
+    <li><b>Eine Raum-Kennung</b> pro Band (aus dem Band-Schlüssel abgeleitet, nicht zurückrechenbar) und ein
+      Prüfschlüssel, mit dem die App ihre Mitgliedschaft nachweist.</li>
+    <li><b>Zeitstempel</b> des letzten Zugriffs. Räume ohne Zugriff werden nach 90 Tagen gelöscht, die Handys
+      laden ihre Daten beim nächsten Abgleich wieder hoch.</li>
+    <li><b>Geteilte Links</b>: der verschlüsselte Inhalt, der Schlüssel steht nur im Link selbst (hinter dem #).
+      Gelöscht nach 7, 30 oder 90 Tagen, je nach Wahl beim Teilen.</li>
+    <li><b>Während einer Probe oder eines Konzerts</b> leitet der Server die Steuerbefehle der Band (Start, Stopp,
+      Weiterblättern) live weiter und dient als gemeinsame Uhr; davon wird nichts gespeichert.</li>
+  </ul>
+  <p>Keine Konten, keine E-Mail-Adressen, keine Werbe- oder Analyse-Dienste. Eine Band kann ihren Raum in der
+    App jederzeit komplett löschen.</p>
+</main>
+</body>
+</html>

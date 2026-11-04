@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,9 +16,13 @@ android {
         applicationId = "at.zentriert.setlist"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        // Host of the band server, so https://<host>/join and /s/… open in the app (see server/README.md).
+        // Set in gradle.properties / local.properties as setlist.appLinkHost=setlist-xyz.a.run.app
+        manifestPlaceholders["appLinkHost"] = (project.findProperty("setlist.appLinkHost") as String?)
+            ?: localProperty("setlist.appLinkHost") ?: "setlist.invalid"
     }
 
     buildTypes {
@@ -38,6 +44,12 @@ android {
         // The lint checks shipped with the multiplatform lifecycle 2.9 artifacts crash on AGP 8.7's lint.
         disable += "NullSafeMutableLiveData"
     }
+}
+
+fun localProperty(name: String): String? {
+    val file = rootProject.file("local.properties")
+    if (!file.exists()) return null
+    return Properties().apply { file.inputStream().use { load(it) } }.getProperty(name)?.takeIf { it.isNotBlank() }
 }
 
 dependencies {

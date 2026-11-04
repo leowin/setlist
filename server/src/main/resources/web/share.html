@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setlist – geteilt</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1b1b1f; --bg: #fdfbff; --muted: #5f5f66; --card: #f1eef7; --accent: #5b3fd6; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #e5e1ec; --bg: #131318; --muted: #a9a5b3; --card: #1f1e26; --accent: #c4b5ff; } }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+  main { max-width: 680px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .song { background: var(--card); border-radius: 12px; padding: 12px 16px; margin: 10px 0; }
+  .song h2 { font-size: 1.1rem; margin: 0; }
+  .tempo { color: var(--accent); font-size: .9rem; }
+  .notes { white-space: pre-wrap; margin: 6px 0 0; color: var(--muted); }
+  .open { display: inline-block; margin: 20px 0 8px; padding: 12px 20px; border-radius: 999px; background: var(--accent); color: var(--bg); font-weight: 600; text-decoration: none; }
+  .hint { color: var(--muted); font-size: .9rem; }
+  .error { color: #c62828; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Setlist</h1>
+  <div class="sub" id="sub">Wird entschlüsselt …</div>
+  <div id="songs"></div>
+  <a class="open" id="open" href="#">In der Setlist-App öffnen</a>
+  <p class="hint">Der Inhalt wird nur hier im Browser entschlüsselt – der Server kennt den Schlüssel nicht
+    (er steht hinter dem # in der Adresse und wird nicht mitgesendet). Ohne App: Text einfach kopieren.</p>
+  <p class="hint"><a href="/privacy">Was der Server speichert</a></p>
+</main>
+<script>
+(async () => {
+  const sub = document.getElementById('sub');
+  const open = document.getElementById('open');
+  open.href = location.href;
+  const id = location.pathname.split('/').filter(Boolean).pop();
+  const keyText = location.hash.slice(1);
+  const fail = (m) => { sub.textContent = m; sub.classList.add('error'); };
+  if (!keyText) return fail('Dieser Link ist unvollständig (Schlüssel fehlt).');
+  const b64 = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+  const enc = new TextEncoder();
+  const hkdf = async (ikm, info) => {
+    const k = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: enc.encode(info) }, k, 256));
+  };
+  try {
+    const res = await fetch(`/shares/${id}/blob`);
+    if (!res.ok) return fail(res.status === 404 ? 'Dieser Link ist abgelaufen oder wurde gelöscht.' : 'Server-Fehler ' + res.status);
+    const sealed = new Uint8Array(await res.arrayBuffer());
+    const key = b64(keyText);
+    const encKey = await hkdf(key, 'enc');
+    const macKey = await hkdf(key, 'mac');
+    const nonce = sealed.slice(0, 16), cipher = sealed.slice(16, sealed.length - 32), tag = sealed.slice(sealed.length - 32);
+    const mk = await crypto.subtle.importKey('raw', macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+    const body = new Uint8Array(16 + cipher.length); body.set(nonce); body.set(cipher, 16);
+    if (!await crypto.subtle.verify('HMAC', mk, tag, body)) return fail('Schlüssel passt nicht zu diesem Link.');
+    const ek = await crypto.subtle.importKey('raw', encKey, 'AES-CTR', false, ['decrypt']);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-CTR', counter: nonce, length: 128 }, ek, cipher);
+    const data = JSON.parse(new TextDecoder().decode(plain));
+    render(data);
+  } catch (e) { fail('Konnte den Inhalt nicht entschlüsseln: ' + e); }
+
+  function render(data) {
+    const songs = data.songs || [];
+    const title = data.setlistName || (songs.length === 1 ? songs[0].title : `${songs.length} Lieder`);
+    document.getElementById('title').textContent = title;
+    document.title = title + ' – Setlist';
+    sub.textContent = (data.from ? `Geteilt von ${data.from} · ` : '') + `${songs.length} ${songs.length === 1 ? 'Lied' : 'Lieder'}`;
+    const list = document.getElementById('songs');
+    songs.forEach((s, i) => {
+      const sc = (data.scores || {})[s.scoreId];
+      const div = document.createElement('div'); div.className = 'song';
+      const h = document.createElement('h2'); h.textContent = (data.setlistName ? `${i + 1}. ` : '') + s.title; div.appendChild(h);
+      if (sc) {
+        const bpm = (sc.tempoMap && sc.tempoMap[0] && sc.tempoMap[0].bpm) || 120;
+        const m = (sc.meterMap && sc.meterMap[0]) || { numerator: 4, denominator: 4 };
+        const parts = (sc.parts || []).map(p => p.name || p.instrument).join(', ');
+        const t = document.createElement('div'); t.className = 'tempo';
+        t.textContent = `♩ ${Math.round(bpm * 10) / 10} · ${m.numerator}/${m.denominator}` + (parts ? ` · Noten: ${parts}` : '');
+        div.appendChild(t);
+      }
+      if (s.notes) { const n = document.createElement('p'); n.className = 'notes'; n.textContent = s.notes; div.appendChild(n); }
+      list.appendChild(div);
+    });
+  }
+})();
+</script>
+</body>
+</html>

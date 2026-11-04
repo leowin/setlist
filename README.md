@@ -51,8 +51,21 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Host-Zeitpunkt gesendet und jedes Handy plant ihn sample-genau über die Zeitstempel seines
   Audio-Streams. Eine einstellbare Startverzögerung gleicht z. B. Bluetooth-Kopfhörer aus, und der
   Sync-Test lässt alle Handys jede Sekunde gemeinsam klicken und blinken.
-- **Band über Internet:** Ein kleiner Relay-Server (`server/`, Docker/Cloud Run) verbindet Bands an
-  getrennten Orten über Räume mit Code; der Server ist die gemeinsame Uhr. Siehe `server/README.md`.
+- **Bands ohne Datenhoheit des Servers** („Band“ auf der Startseite): Eine App kann in mehreren Bands
+  spielen; jedes Lied und jede Setlist gehört genau einer Band (oder ist „Privat“), oben links wird die
+  Band gewählt. Lieder und Setlists lassen sich in eine andere Band **kopieren** (⋮ → „In andere Band
+  kopieren“), die Kopie ist danach unabhängig. Eine Band hat einen zufälligen Schlüssel, der nur auf den
+  Handys liegt; Einladung per **QR-Code** oder Link (Kamera-App scannen oder Link in der App einfügen),
+  keine Konten. Alles, was zum Server geht, ist damit verschlüsselt – er kennt weder Bandnamen noch
+  Liedtitel und löscht Räume nach 90 Tagen ohne Zugriff. Änderungen werden automatisch abgeglichen
+  (auch live, wenn die Band im Internet-Raum verbunden ist); bearbeiten zwei Mitglieder dasselbe Lied
+  gleichzeitig, bleiben beide Fassungen erhalten („… (Fassung von Name)“). Beim Verlassen einer Band bleiben
+  ihre Lieder als private Kopien auf dem Handy.
+- **Teilen-Links:** Lied oder Setlist (mit Noten) als Link teilen, gültig 7/30/90 Tage. Der Schlüssel steht nur
+  im Link (hinter `#`), der Server speichert Verschlüsseltes. Im Browser zeigt eine Vorschau Titel, Tempo und
+  Anweisungen und bietet „In der App öffnen“; die App übernimmt den Inhalt in eine Band oder privat.
+- **Band über Internet:** Der Server (`server/`, Docker/Cloud Run) verbindet die Band an getrennten Orten
+  über ihren Raum; der Server ist die gemeinsame Uhr. Einrichtung, Kosten und App-Links: `server/README.md`.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
@@ -68,7 +81,8 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
 - `iosApp/` – iOS-Einstieg (Swift + XcodeGen-Spec), siehe `iosApp/README.md`.
 - `shared/web/alphatab/` – alphaTab (MPL-2.0) samt Bravura-Schrift (OFL) für das Notenbild; Android liefert
   den Ordner als Assets aus, iOS bindet ihn als Bundle-Ressource ein.
-- `server/` – Relay-Server für Bands über Internet (Ktor, WebSocket).
+- `server/` – Band-Server (Ktor): verschlüsselte Blobs + Manifest je Band, Teilen-Links mit Browser-Vorschau,
+  Live-Raum per WebSocket. `shared/.../sync/` enthält Krypto (`Crypto.kt`), Manifest-Merge und `SyncEngine`.
 - `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
   Android und CoreAudio-Backend für iOS (C-API + cinterop, siehe `iosApp/README.md`). Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
   Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.

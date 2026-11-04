@@ -27,8 +27,14 @@ sealed class Msg {
     @Serializable data class Bye(val reason: String = "") : Msg()
 
     // Cloud relay only (server/): rooms and the server clock.
-    @Serializable data class Join(val room: String, val name: String, val host: Boolean, val instrument: Instrument? = null) : Msg()
+    /** [ts]/[auth]: unix seconds and hex HMAC(authKey, "<ts>\nJOIN\n<room>") proving band membership. */
+    @Serializable data class Join(
+        val room: String, val name: String, val host: Boolean, val instrument: Instrument? = null,
+        val ts: Long = 0, val auth: String = "",
+    ) : Msg()
     @Serializable data class Joined(val room: String, val isHost: Boolean, val hostPresent: Boolean) : Msg()
+    /** The band's encrypted manifest on the server has a new [version] – everyone else should pull. */
+    @Serializable data class Changed(val version: Long) : Msg()
     @Serializable data class Ping(val t1: Long) : Msg()
     @Serializable data class Pong(val t1: Long, val t2: Long, val t3: Long) : Msg()
 

@@ -19,5 +19,10 @@ Swift enthält nur den Einstieg (`SetlistApp.swift`).
   `./audio/tools/build_ios.sh` ausführen (das Xcode-Projekt macht das automatisch, wenn die Bibliothek fehlt).
 - Der Ordner `shared/web/alphatab` wird als Bundle-Ressource eingebunden (Notenbild).
 - `Info.plist`: Bonjour-Berechtigungen für die Band-Suche, Hintergrund-Audio für das Metronom.
+- **Band-Einladungen und Teilen-Links** (`https://<server>/join#…`, `…/s/<id>#<key>`): In Xcode unter
+  Signing & Capabilities die Associated Domain `applinks:<server-host>` eintragen; der Server liefert
+  `/.well-known/apple-app-site-association`, wenn `IOS_APP_ID` (`<TeamID>.at.zentriert.setlist`) gesetzt ist.
+  `SetlistApp.swift` reicht geöffnete URLs über `onOpenURL` an `openLink` im Kotlin-Modul weiter.
+- Krypto für den Band-Abgleich nutzt CommonCrypto (`shared/src/iosMain/.../sync/Crypto.ios.kt`).
 
 Dieser Teil ist bisher nur auf Android getestet; die ersten iOS-Builds auf einem Mac werden Nacharbeiten brauchen.

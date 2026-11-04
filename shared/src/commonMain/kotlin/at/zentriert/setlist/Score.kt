@@ -49,6 +49,10 @@ data class Score(
     /** Mixer per instrument, remembered with the song. */
     val mix: Map<Instrument, PartMix> = emptyMap(),
     val solo: Instrument? = null,
+    /** Sync bookkeeping (see [Synced]); a score belongs to the band of the songs that use it. */
+    val rev: Long = 0,
+    val updatedAt: Long = 0,
+    val updatedBy: String = "",
 ) {
     fun mixOf(instrument: Instrument) = mix[instrument] ?: PartMix()
     val bpm: Double get() = tempoMap.firstOrNull()?.bpm ?: 120.0

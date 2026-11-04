@@ -33,6 +33,14 @@
                 <data android:mimeType="audio/mid" />
                 <data android:mimeType="application/x-midi" />
             </intent-filter>
+            <!-- Band invitations and share links from the band server (host set via appLinkHost, see androidApp/build.gradle.kts) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${appLinkHost}" android:path="/join" />
+                <data android:scheme="https" android:host="${appLinkHost}" android:pathPrefix="/s/" />
+            </intent-filter>
             <!-- Receive notes via "Senden" from Google Notizen (Keep) or any other app -->
             <intent-filter android:label="@string/share_label">
                 <action android:name="android.intent.action.SEND" />

@@ -45,9 +45,16 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.websockets)
+            implementation(libs.qrose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+        // The band sync is tested end to end against the real server (a plain JVM module).
+        getByName("androidUnitTest").dependencies {
+            implementation(project(":server"))
+            implementation(libs.ktor.server.core)
+            implementation(libs.ktor.server.cio)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)

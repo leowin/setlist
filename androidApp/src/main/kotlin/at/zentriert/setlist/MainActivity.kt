@@ -37,6 +37,8 @@ class MainActivity : ComponentActivity() {
     /** Text from "Senden" (Google Notizen/Keep) becomes a setlist; a MIDI file goes to the importer. */
     private fun handleShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_VIEW) return
+        // Band invitations and share links (https://<server>/join#…, …/s/<id>#<key>).
+        intent.data?.takeIf { it.scheme == "https" || it.scheme == "http" }?.let { vm.openLink(it.toString()); return }
         val uri = intent.data ?: intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
         if (uri != null) {
             val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return

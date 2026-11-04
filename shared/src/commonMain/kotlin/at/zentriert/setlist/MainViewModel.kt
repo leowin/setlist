@@ -11,6 +11,7 @@ import at.zentriert.setlist.audio.AudioEngine
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.audio.TransportConfig
+import at.zentriert.setlist.band.Band
 import at.zentriert.setlist.band.BandEvent
 import at.zentriert.setlist.band.BandLink
 import at.zentriert.setlist.band.BandSession
@@ -29,9 +30,21 @@ import at.zentriert.setlist.edit.Recording
 import at.zentriert.setlist.midi.MidiFile
 import at.zentriert.setlist.midi.Smf
 import at.zentriert.setlist.res.Res
+import at.zentriert.setlist.sync.SharePayload
+import at.zentriert.setlist.sync.SyncEngine
+import at.zentriert.setlist.sync.SyncStatus
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsBytes
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -80,6 +93,15 @@ enum class PerformKey { NEXT, PREVIOUS }
 
 private const val START_LEAD_NANOS = 1_500_000_000L
 
+/** `https://host/x` → `wss://host/x/ws`; a ws(s) address is used as given. */
+fun String.toWebSocketUrl(): String {
+    val s = trim().trimEnd('/')
+    if (s.isEmpty()) return s
+    if (s.startsWith("ws://") || s.startsWith("wss://")) return s
+    val base = s.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
+    return (if (base.startsWith("ws")) base else "wss://$base") + "/ws"
+}
+
 /** Tempo and meter as edited in the song dialog. */
 data class TempoEdit(val bpm: Double, val numerator: Int, val denominator: Int) {
     val label get() = "${bpm.toBpmText()} · $numerator/$denominator"
@@ -104,6 +126,9 @@ class MainViewModel(
         private set
 
     init {
+        settingsStore.load().let { repo.author = it.myName.ifBlank { it.deviceId.take(8) } }
+        watchChanges()
+        syncAll()
         if (!audio.soundFontLoaded) viewModelScope.launch {
             soundFontReady = try { audio.loadSoundFont(Res.readBytes("files/setlist.sf2")) } catch (e: Exception) { false }
         }
@@ -173,15 +198,16 @@ class MainViewModel(
             "Setlist " + todayLabel()
         }
         // Songs without instructions get them from the library, if known there.
+        val bandId = currentBandId
         val songs = state.songs().map { song ->
-            val known = repo.findInLibrary(song.title)
+            val known = repo.findInLibrary(song.title, bandId)
             song.copy(
                 notes = if (song.notes.isNotBlank()) song.notes else known?.notes.orEmpty(),
                 scoreId = known?.scoreId,
             )
         }
-        repo.remember(songs)
-        val setlist = Setlist(name = name, songs = songs)
+        repo.remember(songs, bandId)
+        val setlist = Setlist(name = name, songs = songs, bandId = bandId)
         repo.upsert(setlist)
         edit(setlist.id)
     }
@@ -202,7 +228,192 @@ class MainViewModel(
             val i = s.songs.indexOfFirst { it.id == song.id }
             s.copy(songs = if (i < 0) s.songs + saved else s.songs.toMutableList().also { it[i] = saved })
         }
-        repo.remember(listOf(saved))
+        repo.remember(listOf(saved), repo.get(id)?.bandId)
+    }
+
+    // --- bands ---
+
+    val currentBandId: String? get() = settings.currentBandId?.takeIf { id -> repo.data.value.band(id) != null }
+    val currentBand: Band? get() = repo.data.value.band(currentBandId)
+    val bands: List<Band> get() = repo.data.value.bands
+
+    fun selectBand(bandId: String?) = updateSettings { it.copy(currentBandId = bandId) }
+
+    /** Sync state per band, for the band screen. */
+    val syncStatus = mutableStateMapOf<String, SyncStatus>()
+    private val engines = HashMap<String, SyncEngine>()
+    private var syncJob: Job? = null
+
+    /** A band can carry its own server; otherwise the one from the settings is used. */
+    fun serverFor(band: Band) = band.serverUrl.ifBlank { settings.serverUrl }.trim()
+
+    private fun engine(band: Band): SyncEngine? {
+        val server = serverFor(band)
+        if (server.isEmpty()) return null
+        return engines.getOrPut(band.id) {
+            SyncEngine(repo, band, server, repo.syncDir, myName = { bandName() }, onStatus = { s ->
+                viewModelScope.launch(Dispatchers.Main) { syncStatus[band.id] = s }
+            })
+        }
+    }
+
+    fun syncBand(bandId: String) {
+        val band = repo.data.value.band(bandId) ?: return
+        val engine = engine(band) ?: return
+        viewModelScope.launch(Dispatchers.Default) { engine.sync() }
+    }
+
+    fun syncAll() = repo.data.value.bands.forEach { syncBand(it.id) }
+
+    /** The private library is empty or not; tells whether to offer "take everything into the band". */
+    val hasPrivateData: Boolean get() = repo.data.value.let { it.setlists(null).isNotEmpty() || it.library(null).isNotEmpty() }
+
+    fun createBand(name: String, adoptPrivate: Boolean) {
+        val band = Band.create(name.ifBlank { "Band" }, "")
+        addBand(band, adoptPrivate)
+    }
+
+    /** Joins from an invitation link or just its pasted code; false when the text isn't one. */
+    fun joinBandFromInvite(text: String, adoptPrivate: Boolean): Boolean {
+        val band = Band.fromInvite(text, settings.serverUrl) ?: return false
+        addBand(band.copy(serverUrl = if (band.serverUrl == settings.serverUrl) "" else band.serverUrl), adoptPrivate)
+        return true
+    }
+
+    private fun addBand(band: Band, adoptPrivate: Boolean) {
+        repo.addBand(band)
+        if (adoptPrivate) repo.adoptPrivate(band.id)
+        selectBand(band.id)
+        syncBand(band.id)
+    }
+
+    /** Leaves locally: the band's songs and setlists stay here as private copies. */
+    fun leaveBandLocally(bandId: String) {
+        engines.remove(bandId)
+        syncStatus.remove(bandId)
+        SyncEngine.forget(repo.syncDir, bandId)
+        repo.removeBand(bandId)
+        if (settings.currentBandId == bandId) selectBand(null)
+    }
+
+    /** Wipes the band's room on the server; the phones keep everything. */
+    fun deleteBandOnServer(bandId: String, then: (String?) -> Unit) {
+        val band = repo.data.value.band(bandId) ?: return
+        val engine = engine(band) ?: return then("Kein Server eingetragen")
+        viewModelScope.launch(Dispatchers.Default) {
+            val error = runCatching { engine.deleteRoom() }.exceptionOrNull()?.message
+            withContext(Dispatchers.Main) { then(error) }
+        }
+    }
+
+    fun inviteLink(band: Band): String = band.inviteLink(serverFor(band))
+
+    fun copySongToBand(songId: String, targetBandId: String?) { repo.copySong(songId, targetBandId) }
+    fun copySetlistToBand(setlistId: String, targetBandId: String?) { repo.copySetlist(setlistId, targetBandId) }
+
+    // --- share links & incoming links ---
+
+    private val http by lazy { HttpClient(CIO) }
+    val canShareLinks: Boolean get() = settings.serverUrl.isNotBlank()
+
+    class ShareRequest(val title: String, val payload: SharePayload)
+    var shareRequest by mutableStateOf<ShareRequest?>(null)
+        private set
+    /** A share link that was opened: shown for review before it lands in the library. */
+    var incomingShare by mutableStateOf<SharePayload?>(null)
+        private set
+    var linkMessage by mutableStateOf<String?>(null)
+
+    fun shareSongLink(songId: String) {
+        val song = repo.data.value.library.firstOrNull { it.id == songId && !it.deleted } ?: return
+        val scores = listOfNotNull(repo.score(song.scoreId)).associateBy { it.id }
+        shareRequest = ShareRequest(song.title, SharePayload(songs = listOf(song.stripped()), scores = scores, from = bandName()))
+    }
+
+    fun shareSetlistLink(setlistId: String) {
+        val setlist = repo.get(setlistId) ?: return
+        val scores = setlist.songs.mapNotNull { repo.score(it.scoreId) }.associateBy { it.id }
+        shareRequest = ShareRequest(setlist.name, SharePayload(setlistName = setlist.name, songs = setlist.songs.map { it.stripped() }, scores = scores, from = bandName()))
+    }
+
+    private fun Song.stripped() = copy(bandId = null, rev = 0, updatedAt = 0, updatedBy = "", deleted = false)
+
+    fun cancelShare() { shareRequest = null }
+
+    /** Encrypts the payload with a fresh key, stores it on the server and hands back the link (or an error). */
+    fun uploadShare(ttlDays: Int, onDone: (link: String?, error: String?) -> Unit) {
+        val request = shareRequest ?: return
+        val server = settings.serverUrl.trimEnd('/')
+        viewModelScope.launch(Dispatchers.Default) {
+            val result = runCatching {
+                val sealed = request.payload.seal()
+                val response = http.post("$server/shares?ttl=$ttlDays") { setBody(sealed.bytes) }
+                if (response.status != HttpStatusCode.Created) throw IllegalStateException("Server: ${response.status}")
+                val id = Regex("\"id\":\"([^\"]+)\"").find(response.bodyAsText())?.groupValues?.get(1) ?: throw IllegalStateException("Antwort unverständlich")
+                SharePayload.link(server, id, sealed.keyBase64)
+            }
+            withContext(Dispatchers.Main) {
+                shareRequest = null
+                onDone(result.getOrNull(), result.exceptionOrNull()?.let { it.message ?: it.toString() })
+            }
+        }
+    }
+
+    /** A link opened with the app: a band invitation or a shared song/setlist. */
+    fun openLink(url: String) {
+        val trimmed = url.trim()
+        if (trimmed.contains("/join#") || Band.fromInvite(trimmed, settings.serverUrl) != null && !trimmed.contains("/s/")) {
+            val band = Band.fromInvite(trimmed, settings.serverUrl) ?: return
+            if (repo.data.value.band(band.id) != null) { selectBand(band.id); linkMessage = "Du bist schon in „${band.name}“."; goHome(); return }
+            if (joinBandFromInvite(trimmed, adoptPrivate = false)) { linkMessage = "Willkommen in der Band „${band.name}“!"; openBand() }
+            return
+        }
+        val (server, id, key) = SharePayload.parseLink(trimmed) ?: run { linkMessage = "Diesen Link kennt die App nicht."; return }
+        viewModelScope.launch(Dispatchers.Default) {
+            val result = runCatching {
+                val response = http.get("$server/shares/$id/blob")
+                if (response.status != HttpStatusCode.OK) throw IllegalStateException(if (response.status == HttpStatusCode.NotFound) "Der Link ist abgelaufen oder wurde gelöscht." else "Server: ${response.status}")
+                SharePayload.open(response.bodyAsBytes(), key) ?: throw IllegalStateException("Der Schlüssel im Link passt nicht.")
+            }
+            withContext(Dispatchers.Main) {
+                result.onSuccess { incomingShare = it }.onFailure { linkMessage = it.message ?: it.toString() }
+            }
+        }
+    }
+
+    fun dismissIncomingShare() { incomingShare = null }
+
+    /** Puts the shared songs (and setlist) into the chosen band's library. */
+    fun acceptShare(payload: SharePayload, bandId: String?) {
+        val scoreIds = HashMap<String, String>()
+        payload.scores.values.forEach { score ->
+            val fresh = score.copy(id = newId(), rev = 0, updatedAt = 0, updatedBy = "")
+            repo.saveScore(fresh)
+            scoreIds[score.id] = fresh.id
+        }
+        val songs = payload.songs.map { s -> s.stripped().copy(id = newId(), scoreId = s.scoreId?.let { scoreIds[it] }) }
+        repo.remember(songs, bandId)
+        if (payload.setlistName != null) {
+            val setlist = Setlist(name = payload.setlistName, songs = songs, bandId = bandId)
+            repo.upsert(setlist)
+            selectBand(bandId)
+            incomingShare = null
+            edit(setlist.id)
+        } else {
+            selectBand(bandId)
+            incomingShare = null
+            openLibrary()
+        }
+    }
+
+    /** Local changes are pushed a moment after the last one. */
+    private fun watchChanges() {
+        syncJob = viewModelScope.launch {
+            repo.changes.collectLatest {
+                delay(2000)
+                syncAll()
+            }
+        }
     }
 
     fun score(song: Song?): Score? = repo.score(song?.scoreId)
@@ -224,7 +435,8 @@ class MainViewModel(
 
     // --- library ---
 
-    fun saveLibrarySong(song: Song, tempo: TempoEdit? = null) = repo.saveLibrarySong(withTempo(song, tempo))
+    fun saveLibrarySong(song: Song, tempo: TempoEdit? = null) =
+        repo.saveLibrarySong(withTempo(song, tempo).let { if (repo.data.value.library.none { l -> l.id == it.id }) it.copy(bandId = currentBandId) else it })
     fun deleteLibrarySong(songId: String) = repo.deleteLibrarySong(songId)
 
     fun deleteSong(id: String, songId: String) = change(id) { s ->
@@ -715,8 +927,8 @@ class MainViewModel(
                 saveSong(target.setlistId, newSong)
                 openNotes(target.setlistId, newSong.id)
             } else {
-                repo.remember(listOf(newSong))
-                val stored = repo.findInLibrary(title) ?: newSong
+                repo.remember(listOf(newSong), currentBandId)
+                val stored = repo.findInLibrary(title, currentBandId) ?: newSong
                 openNotes(null, stored.id)
             }
         }
@@ -738,7 +950,7 @@ class MainViewModel(
         private set
     private var bandSetlistId: String? = null
 
-    fun bandName(): String = settings.bandName.ifBlank { "Setlist" }
+    fun bandName(): String = settings.myName.ifBlank { "Setlist" }
 
     fun startDiscovery() {
         bandHosts.clear()
@@ -768,13 +980,16 @@ class MainViewModel(
         session.join(host, port, settings.myInstrument)
     }
 
-    /** Band over the internet via the relay server; the first to host a room leads it. */
+    /** Band over the internet via the server; the first to host the band's room leads it. */
     fun joinCloud(asHost: Boolean) {
-        val url = settings.serverUrl.trim()
-        val room = settings.roomCode.trim().uppercase()
-        if (url.isEmpty() || room.isEmpty()) { bandStatus = "Server-Adresse und Raum-Code eintragen"; return }
+        val myBand = currentBand
+        val url = (myBand?.let { serverFor(it) } ?: settings.serverUrl).trim().toWebSocketUrl()
+        if (myBand == null || url.isEmpty()) { bandStatus = "Zuerst eine Band gründen oder beitreten (und Server eintragen)"; return }
         leaveBand()
-        val session = CloudSession(url, room, bandName(), asHost, settings.myInstrument) { event ->
+        val keys = myBand.keys()
+        val session = CloudSession(url, myBand.id, bandName(), asHost, settings.myInstrument, joinAuth = { ts ->
+            at.zentriert.setlist.sync.Crypto.hex(at.zentriert.setlist.sync.Crypto.hmac(keys.authKey, at.zentriert.setlist.sync.BandKeys.signedText(ts, "JOIN", myBand.id, ByteArray(0)).encodeToByteArray()))
+        }) { event ->
             if (event is BandEvent.Status) viewModelScope.launch(Dispatchers.Main) { bandRole = (band as? CloudSession)?.role }
             onBandEvent(event)
         }
@@ -825,7 +1040,9 @@ class MainViewModel(
         when (msg) {
             is Msg.SetlistSync -> {
                 msg.scores.values.forEach { repo.saveScore(it) }
-                repo.upsert(msg.setlist)
+                // The host's setlist shows up in the band it belongs to, or in my current one if I'm not in that band.
+                val bandId = msg.setlist.bandId?.takeIf { repo.data.value.band(it) != null } ?: currentBandId
+                repo.upsert(msg.setlist.copy(bandId = bandId))
                 bandSetlistId = msg.setlist.id
                 if (screen !is Screen.Band || true) {
                     performIndex = 0; blackout = false; performBpm = null
@@ -855,6 +1072,7 @@ class MainViewModel(
             }
             is Msg.Stop -> { audio.stopPlayback(); finishPlayback(); audio.stopMetronome(); positionPoller?.cancel(); positionPoller = null; metronomeOn = false; metronomePosition = null }
             is Msg.SyncTest -> if (msg.on) runSyncTest() else stopSyncTest()
+            is Msg.Changed -> currentBandId?.let { syncBand(it) }
             else -> {}
         }
     }
@@ -900,6 +1118,7 @@ class MainViewModel(
         settings = transform(settings)
         settingsStore.save(settings)
         audio.setClickVolume(settings.clickVolume)
+        repo.author = settings.myName.ifBlank { settings.deviceId.take(8) }
     }
 
     /** Metronome settings changed while it runs are applied immediately. */

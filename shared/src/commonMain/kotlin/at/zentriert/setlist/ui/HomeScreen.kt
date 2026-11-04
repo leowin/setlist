@@ -12,9 +12,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import at.zentriert.setlist.ui.band.BandSelector
+import at.zentriert.setlist.ui.band.CopyToBandDialog
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -44,11 +52,12 @@ import at.zentriert.setlist.Setlist
 @Composable
 fun HomeScreen(vm: MainViewModel, setlists: List<Setlist>) {
     var toDelete by remember { mutableStateOf<Setlist?>(null) }
+    var toCopy by remember { mutableStateOf<Setlist?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Setlists") },
+                title = { BandSelector(vm.bands, vm.currentBandId, onSelect = vm::selectBand) },
                 actions = {
                     TextButton(onClick = vm::openBand) {
                         Icon(Icons.Default.Groups, null)
@@ -88,9 +97,11 @@ fun HomeScreen(vm: MainViewModel, setlists: List<Setlist>) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        IconButton(onClick = { toDelete = setlist }) {
-                            Icon(Icons.Default.Delete, "Löschen")
-                        }
+                        SetlistMenu(
+                            onCopy = { toCopy = setlist },
+                            onShareLink = if (vm.canShareLinks) ({ vm.shareSetlistLink(setlist.id) }) else null,
+                            onDelete = { toDelete = setlist },
+                        )
                         FilledIconButton(onClick = { vm.perform(setlist.id) }, enabled = setlist.songs.isNotEmpty()) {
                             Icon(Icons.Default.PlayArrow, "Konzert starten")
                         }
@@ -100,6 +111,14 @@ fun HomeScreen(vm: MainViewModel, setlists: List<Setlist>) {
         }
     }
 
+    toCopy?.let { setlist ->
+        CopyToBandDialog(
+            title = "„${setlist.name}“ kopieren nach …",
+            bands = vm.bands, currentBandId = vm.currentBandId,
+            onPick = { vm.copySetlistToBand(setlist.id, it); toCopy = null },
+            onDismiss = { toCopy = null },
+        )
+    }
     toDelete?.let { setlist ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
@@ -110,6 +129,20 @@ fun HomeScreen(vm: MainViewModel, setlists: List<Setlist>) {
             },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("Abbrechen") } },
         )
+    }
+}
+
+/** ⋮ on a setlist card: copy into another band, share as link, delete. */
+@Composable
+fun SetlistMenu(onCopy: () -> Unit, onShareLink: (() -> Unit)?, onDelete: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, "Mehr") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("In andere Band kopieren …") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { open = false; onCopy() })
+            if (onShareLink != null) DropdownMenuItem(text = { Text("Als Link teilen …") }, leadingIcon = { Icon(Icons.Default.Link, null) }, onClick = { open = false; onShareLink() })
+            DropdownMenuItem(text = { Text("Löschen") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { open = false; onDelete() })
+        }
     }
 }
 
