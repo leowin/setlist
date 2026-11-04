@@ -96,10 +96,10 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                 onPosition = { jumping = true },
                 onSmaller = { vm.changeFontSize(-4f) },
                 onBigger = { vm.changeFontSize(4f) },
-                onNextCount = { vm.updateSettings { it.copy(nextCount = if (it.nextCount == 1) 2 else 1) } },
+                onNextCount = { vm.updateSettings { it.copy(nextCount = (it.nextCount + 1) % 3) } },
                 onKeepOn = { vm.updateSettings { it.copy(keepScreenOn = !it.keepScreenOn) } },
                 onScreenOff = vm::screenOff,
-                onNotation = { vm.updateSettings { it.copy(performNotation = !it.performNotation) } },
+                onNotation = { vm.updateSettings { it.copy(performMode = (it.performMode + 1) % 3) } },
             )
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val upcoming = (1..settings.nextCount).map { songs.getOrNull(index + it) }
@@ -107,26 +107,37 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                 val beats = vm.metronomePosition
                 val numerator = vm.tempoFor(current).numerator
                 val score = vm.score(current)
-                val notation = settings.performNotation && score != null && score.parts.any { it.notes.isNotEmpty() }
-                if (maxWidth > maxHeight) {
-                    Row(Modifier.fillMaxSize()) {
-                        Box(Modifier.weight(1.4f).fillMaxHeight()) {
-                            BeatBackground(beats, numerator)
-                            if (notation && score != null) PerformNotation(vm, current!!, score, settings.fontSize)
-                            else CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
+                val hasNotes = score != null && score.parts.any { it.notes.isNotEmpty() }
+                val mode = if (hasNotes) settings.performMode else 0   // 0 text, 1 notes, 2 both
+                val upcomingVisible = settings.nextCount > 0
+                val landscape = maxWidth > maxHeight
+                // Current song: text, notes or both – each pane carries the beat background.
+                val currentPane: @Composable (Modifier) -> Unit = { m ->
+                    if (mode == 2 && score != null) {
+                        if (landscape) Row(m) {
+                            Box(Modifier.weight(1f).fillMaxHeight()) { BeatBackground(beats, numerator); CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize()) }
+                            VerticalDivider(color = DimColor.copy(alpha = 0.4f))
+                            Box(Modifier.weight(1.2f).fillMaxHeight()) { BeatBackground(beats, numerator); PerformNotation(vm, current!!, score, settings.fontSize, showTitle = false) }
+                        } else Column(m) {
+                            Box(Modifier.weight(1f).fillMaxWidth()) { BeatBackground(beats, numerator); CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize()) }
+                            HorizontalDivider(color = DimColor.copy(alpha = 0.4f))
+                            Box(Modifier.weight(1.2f).fillMaxWidth()) { BeatBackground(beats, numerator); PerformNotation(vm, current!!, score, settings.fontSize, showTitle = false) }
                         }
-                        VerticalDivider(color = DimColor.copy(alpha = 0.4f))
-                        Column(Modifier.weight(1f).fillMaxHeight()) {
-                            UpcomingSongs(upcoming, index, settings.fontSize)
-                        }
+                    } else Box(m) {
+                        BeatBackground(beats, numerator)
+                        if (mode == 1 && score != null) PerformNotation(vm, current!!, score, settings.fontSize, showTitle = true)
+                        else CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
                     }
-                } else {
-                    Column(Modifier.fillMaxSize()) {
-                        Box(Modifier.weight(1.4f).fillMaxWidth()) {
-                            BeatBackground(beats, numerator)
-                            if (notation && score != null) PerformNotation(vm, current!!, score, settings.fontSize)
-                            else CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
-                        }
+                }
+                when {
+                    !upcomingVisible -> currentPane(Modifier.fillMaxSize())
+                    landscape -> Row(Modifier.fillMaxSize()) {
+                        currentPane(Modifier.weight(1.4f).fillMaxHeight())
+                        VerticalDivider(color = DimColor.copy(alpha = 0.4f))
+                        Column(Modifier.weight(1f).fillMaxHeight()) { UpcomingSongs(upcoming, index, settings.fontSize) }
+                    }
+                    else -> Column(Modifier.fillMaxSize()) {
+                        currentPane(Modifier.weight(1.4f).fillMaxWidth())
                         HorizontalDivider(color = DimColor.copy(alpha = 0.4f))
                         UpcomingSongs(upcoming, index, settings.fontSize)
                     }
@@ -214,8 +225,9 @@ private fun TopStrip(
         TextButton(onClick = onNextCount) {
             Text("+${settings.nextCount}", color = DimColor, fontSize = 18.sp)
         }
-        IconButton(onClick = onNotation) {
-            Icon(Icons.Default.LibraryMusic, "Noten statt Text", tint = if (settings.performNotation) Amber else DimColor)
+        TextButton(onClick = onNotation) {
+            Icon(Icons.Default.LibraryMusic, null, tint = if (settings.performMode > 0) Amber else DimColor)
+            Text(when (settings.performMode) { 1 -> " Noten"; 2 -> " Beides"; else -> " Notizen" }, color = DimColor, fontSize = 12.sp)
         }
         IconButton(onClick = onKeepOn) {
             Icon(
@@ -232,14 +244,14 @@ private fun TopStrip(
 
 /** Sheet music of my instrument (or the first part) in the concert view, title on top. */
 @Composable
-private fun PerformNotation(vm: MainViewModel, song: Song, score: Score, fontSize: Float) {
+private fun PerformNotation(vm: MainViewModel, song: Song, score: Score, fontSize: Float, showTitle: Boolean) {
     val settings = vm.settings
     val instrument = settings.myInstrument?.takeIf { inst -> score.parts.any { it.instrument == inst && it.notes.isNotEmpty() } }
         ?: score.parts.first { it.notes.isNotEmpty() }.instrument
     val view = AlphaTex.View.entries.getOrElse(settings.notationView) { AlphaTex.View.BOTH }
     val tex = remember(score, instrument, view) { AlphaTex.render(score, song.title, listOf(instrument), view) }
     Column(Modifier.fillMaxSize()) {
-        Text(
+        if (showTitle) Text(
             song.title,
             color = Color.White,
             fontSize = (fontSize * 1.1f).sp,
@@ -248,7 +260,11 @@ private fun PerformNotation(vm: MainViewModel, song: Song, score: Score, fontSiz
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        NotationView(tex, vm.notationCursor(score), settings.notationScale, Modifier.weight(1f).fillMaxWidth())
+        NotationView(
+            tex, vm.notationCursor(score), settings.notationScale, settings.notationLight,
+            onTap = { tick -> vm.jumpTo(score, tick * score.ppq / 960) },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        )
     }
 }
 

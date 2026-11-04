@@ -42,7 +42,7 @@ expect fun rememberFilePicker(onPicked: (bytes: ByteArray, name: String) -> Unit
  * [cursorTick] is in alphaTab ticks (960 per quarter) or null for no cursor.
  */
 @Composable
-expect fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: Modifier)
+expect fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier)
 
 /** Monotonic clock in nanoseconds (same clock the audio engine uses for its timestamps). */
 expect fun monotonicNanos(): Long

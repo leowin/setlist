@@ -19,7 +19,10 @@ private class Holder {
     var pendingScale = 1f
     var lastTex: String? = null
     var lastScale = 1f
+    var lastLight = false
+    var pendingLight = false
     var lastCursor: Long? = -2L
+    var onTap: (Long) -> Unit = {}
 }
 
 private fun jsString(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "") + "\""
@@ -27,19 +30,30 @@ private fun jsString(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "
 /** Loads web/alphatab/index.html from the app bundle (add the `alphatab` folder as a bundle resource). */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: Modifier) {
+actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier) {
     val holder = remember { Holder() }
+    holder.onTap = onTap
     val delegate = remember {
         object : NSObject(), WKNavigationDelegateProtocol {
             override fun webView(webView: WKWebView, didFinishNavigation: WKNavigation?) {
                 holder.ready = true
-                holder.pendingTex?.let { webView.evaluateJavaScript("renderTex(${jsString(it)}, ${holder.pendingScale})", null) }
+                holder.pendingTex?.let { webView.evaluateJavaScript("renderTex(${jsString(it)}, ${holder.pendingScale}, ${holder.pendingLight})", null) }
+            }
+        }
+    }
+    val handler = remember {
+        object : NSObject(), platform.WebKit.WKScriptMessageHandlerProtocol {
+            override fun userContentController(userContentController: platform.WebKit.WKUserContentController, didReceiveScriptMessage: platform.WebKit.WKScriptMessage) {
+                val body = didReceiveScriptMessage.body.toString()
+                if (body.startsWith("tap:")) body.removePrefix("tap:").toLongOrNull()?.let(holder.onTap)
             }
         }
     }
     UIKitView(
         factory = {
-            val web = WKWebView(frame = platform.CoreGraphics.CGRectZero.readValue(), configuration = WKWebViewConfiguration())
+            val config = WKWebViewConfiguration()
+            config.userContentController.addScriptMessageHandler(handler, "setlist")
+            val web = WKWebView(frame = platform.CoreGraphics.CGRectZero.readValue(), configuration = config)
             web.navigationDelegate = delegate
             web.opaque = false
             val url = NSBundle.mainBundle.URLForResource("index", "html", "alphatab")
@@ -48,10 +62,10 @@ actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: 
         },
         modifier = modifier,
         update = { web ->
-            if (tex != holder.lastTex || scale != holder.lastScale) {
-                holder.lastTex = tex; holder.lastScale = scale; holder.lastCursor = -2L
-                if (holder.ready) web.evaluateJavaScript("renderTex(${jsString(tex)}, $scale)", null)
-                else { holder.pendingTex = tex; holder.pendingScale = scale }
+            if (tex != holder.lastTex || scale != holder.lastScale || light != holder.lastLight) {
+                holder.lastTex = tex; holder.lastScale = scale; holder.lastLight = light; holder.lastCursor = -2L
+                if (holder.ready) web.evaluateJavaScript("renderTex(${jsString(tex)}, $scale, $light)", null)
+                else { holder.pendingTex = tex; holder.pendingScale = scale; holder.pendingLight = light }
             }
             if (cursorTick != holder.lastCursor && holder.ready) {
                 holder.lastCursor = cursorTick

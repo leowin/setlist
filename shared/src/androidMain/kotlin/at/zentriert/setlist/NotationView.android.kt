@@ -21,16 +21,20 @@ private class Holder {
     var pendingScale = 1f
     var lastTex: String? = null
     var lastScale = 1f
+    var lastLight = false
+    var pendingLight = false
     var lastCursor: Long? = -2L
     var rendered = false
+    var onTap: (Long) -> Unit = {}
 }
 
 private fun jsString(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "") + "\""
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: Modifier) {
+actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier) {
     val holder = remember { Holder() }
+    holder.onTap = onTap
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -47,21 +51,22 @@ actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: 
                         loader.shouldInterceptRequest(request.url)
                     override fun onPageFinished(view: WebView, url: String?) {
                         holder.ready = true
-                        holder.pendingTex?.let { evaluateJavascript("renderTex(${jsString(it)}, ${holder.pendingScale})", null) }
+                        holder.pendingTex?.let { evaluateJavascript("renderTex(${jsString(it)}, ${holder.pendingScale}, ${holder.pendingLight})", null) }
                     }
                 }
                 addJavascriptInterface(object {
                     @JavascriptInterface fun onRendered() { holder.rendered = true }
                     @JavascriptInterface fun onError(message: String) { android.util.Log.w("Notation", message) }
+                    @JavascriptInterface fun onBeatTapped(tick: Long) { post { holder.onTap(tick) } }
                 }, "Android")
                 loadUrl(PAGE)
             }
         },
         update = { web ->
-            if (tex != holder.lastTex || scale != holder.lastScale) {
-                holder.lastTex = tex; holder.lastScale = scale; holder.lastCursor = -2L
-                if (holder.ready) web.evaluateJavascript("renderTex(${jsString(tex)}, $scale)", null)
-                else { holder.pendingTex = tex; holder.pendingScale = scale }
+            if (tex != holder.lastTex || scale != holder.lastScale || light != holder.lastLight) {
+                holder.lastTex = tex; holder.lastScale = scale; holder.lastLight = light; holder.lastCursor = -2L
+                if (holder.ready) web.evaluateJavascript("renderTex(${jsString(tex)}, $scale, $light)", null)
+                else { holder.pendingTex = tex; holder.pendingScale = scale; holder.pendingLight = light }
             }
             if (cursorTick != holder.lastCursor && holder.ready) {
                 holder.lastCursor = cursorTick

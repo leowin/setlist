@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -210,12 +211,12 @@ private fun TransportBar(vm: MainViewModel, score: Score, withMetronome: Boolean
         else -> ScorePlayback.barBeat(score, tick).let { (bar, beat) -> "Takt $bar · $beat" }
     }
     Row(
-        Modifier.fillMaxWidth().padding(12.dp).height(56.dp),
+        Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp).height(56.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Button(
-            onClick = { if (vm.playing) vm.stopPlayback() else vm.playScore(score, withMetronome = withMetronome) },
+            onClick = { if (vm.playing) vm.stopPlayback() else vm.playFromCursor(score, withMetronome = withMetronome) },
             enabled = vm.soundFontReady,
             modifier = Modifier.height(56.dp),
         ) {

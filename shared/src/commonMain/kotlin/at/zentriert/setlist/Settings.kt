@@ -23,8 +23,9 @@ data class PerformSettings(
     /** Sheet music view: which staff kind for stringed instruments and the zoom. */
     val notationView: Int = 2,
     val notationScale: Float = 1.0f,
-    /** Concert view shows the notes of my instrument instead of the text instructions. */
-    val performNotation: Boolean = false,
+    /** Concert view: 0 = text instructions, 1 = sheet music of my instrument, 2 = both. */
+    val performMode: Int = 0,
+    val notationLight: Boolean = false,
     /** Name shown to the band; extra delay applied to synced starts (e.g. for Bluetooth headphones). */
     val bandName: String = "",
     val syncOffsetMs: Int = 0,
@@ -59,7 +60,8 @@ class SettingsStore(private val store: KeyValueStore) {
         recordReplace = store.getBoolean("recordReplace", false),
         notationView = store.getInt("notationView", 2),
         notationScale = store.getFloat("notationScale", 1.0f),
-        performNotation = store.getBoolean("performNotation", false),
+        performMode = store.getInt("performMode", 0),
+        notationLight = store.getBoolean("notationLight", false),
         bandName = store.getString("bandName", ""),
         syncOffsetMs = store.getInt("syncOffsetMs", 0),
         serverUrl = store.getString("serverUrl", ""),
@@ -84,7 +86,8 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putBoolean("recordReplace", s.recordReplace)
         store.putInt("notationView", s.notationView)
         store.putFloat("notationScale", s.notationScale)
-        store.putBoolean("performNotation", s.performNotation)
+        store.putInt("performMode", s.performMode)
+        store.putBoolean("notationLight", s.notationLight)
         store.putString("bandName", s.bandName)
         store.putInt("syncOffsetMs", s.syncOffsetMs)
         store.putString("serverUrl", s.serverUrl)

@@ -2,6 +2,8 @@ package at.zentriert.setlist.ui.metronome
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,10 +88,11 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
     var editTempo by remember { mutableStateOf(false) }
 
     Row(
-        Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
+        Modifier.fillMaxWidth().height(56.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Tune, "Metronom-Einstellungen (Unterteilung, Vorzähler, Lautstärke)", tint = DimColor) }
         Button(
             onClick = { vm.toggleMetronome(song) },
             colors = ButtonDefaults.buttonColors(
@@ -126,11 +129,14 @@ fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
         if (vm.bandRole != null) {
             Text(if (vm.bandRole == at.zentriert.setlist.band.Role.HOST) "HOST" else "BAND", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.weight(1f))
         if (vm.performBpm != null && song != null) {
             TextButton(onClick = { vm.adoptTempo(setlist.id, song) }) { Text("Übernehmen", color = Amber) }
         }
-        IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Tune, "Metronom-Einstellungen", tint = DimColor) }
+        Text(
+            when (vm.settings.subdivision) { 2 -> "♪ Achtel"; 3 -> "♪ Triolen"; 4 -> "♪ 16tel"; else -> "♩ Viertel" },
+            color = DimColor, fontSize = 11.sp,
+            modifier = Modifier.clickable { showSettings = true }.padding(horizontal = 6.dp),
+        )
     }
 
     if (showSettings) MetronomeSettingsDialog(vm, song, onDismiss = { showSettings = false })

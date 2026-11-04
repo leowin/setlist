@@ -260,6 +260,7 @@ class MainViewModel(
         stopMetronome()
         stopPlayback()
         performBpm = null
+        startTick = 0
         performIndex = i
         if (bandRole == Role.HOST && !fromHost) band?.broadcast(Msg.Navigate(i))
     }
@@ -443,15 +444,34 @@ class MainViewModel(
         finishPlayback()
     }
 
+    /** Where play starts (and where a paused playback resumes), in ticks. */
+    var startTick by mutableStateOf(0L)
+
+    fun pausePlayback() {
+        startTick = playbackTick ?: playbackFrom
+        stopPlayback()
+    }
+
+    /** Play from the cursor; a tap on the notation sets the cursor and, while playing, jumps there. */
+    fun playFromCursor(score: Score, withMetronome: Boolean = true) {
+        val from = startTick.coerceIn(0, ScorePlayback.lastTick(score))
+        if (bandRole == Role.HOST && screen is Screen.Perform) {
+            val at = referenceNow(START_LEAD_NANOS)
+            band?.broadcast(Msg.Start(at, score.id, from, score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, settings.countInBars, withMetronome))
+            playScore(score, from, withMetronome, atNanos = hostToLocal(at))
+        } else playScore(score, from, withMetronome)
+    }
+
+    fun jumpTo(score: Score, tick: Long) {
+        startTick = tick.coerceAtLeast(0)
+        if (playing) playFromCursor(score)
+    }
+
     /** Concert view: play the current song's notes for everyone (host) or just here. */
     fun performPlay(song: Song?) {
         val score = score(song) ?: return
         if (score.parts.none { it.notes.isNotEmpty() }) return startMetronome(song)
-        if (bandRole == Role.HOST) {
-            val at = referenceNow(START_LEAD_NANOS)
-            band?.broadcast(Msg.Start(at, score.id, 0, score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, settings.countInBars, true))
-            playScore(score, 0, withMetronome = true, atNanos = hostToLocal(at))
-        } else playScore(score, 0, withMetronome = true)
+        playFromCursor(score)
     }
 
     /** Live playing (pads/keys); while recording or in step input the press also becomes a note. */

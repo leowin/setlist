@@ -20,7 +20,12 @@
   const bridge = () => window.Android || (window.webkit && window.webkit.messageHandlers && {
     onRendered: () => window.webkit.messageHandlers.setlist.postMessage('rendered'),
     onError: (m) => window.webkit.messageHandlers.setlist.postMessage('error:' + m),
-  }) || { onRendered() {}, onError(m) { console.error(m); } };
+    onBeatTapped: (t) => window.webkit.messageHandlers.setlist.postMessage('tap:' + t),
+  }) || { onRendered() {}, onError(m) { console.error(m); }, onBeatTapped() {} };
+  const THEMES = {
+    dark: { bg: '#101010', staffLineColor: '#8a8a8a', barSeparatorColor: '#bdbdbd', mainGlyphColor: '#f5f5f5', secondaryGlyphColor: '#cfcfcf', scoreInfoColor: '#f5f5f5', barNumberColor: '#ffc107' },
+    light: { bg: '#ffffff', staffLineColor: '#555555', barSeparatorColor: '#222222', mainGlyphColor: '#000000', secondaryGlyphColor: '#333333', scoreInfoColor: '#000000', barNumberColor: '#b26a00' },
+  };
 
   const settings = {
     core: { fontDirectory: 'font/', engine: 'html5', useWorkers: false, logLevel: 'warning' },
@@ -53,12 +58,23 @@
     bridge().onError(String(e && e.message ? e.message : e));
   });
 
-  window.renderTex = (tex, scale) => {
+  window.renderTex = (tex, scale, light) => {
+    const theme = light ? THEMES.light : THEMES.dark;
+    document.documentElement.style.background = document.body.style.background = theme.bg;
+    const r = api.settings.display.resources;
+    for (const k of Object.keys(theme)) if (k !== 'bg') r[k] = alphaTab.model.Color.fromJson(theme[k]);
     api.settings.display.scale = scale || 1.0;
     api.updateSettings();
     document.getElementById('cursor').style.display = 'none';
     api.tex(tex);
   };
+  // Tap on a beat → tell the app which tick (alphaTab ticks) was hit.
+  el.addEventListener('click', (ev) => {
+    const x = ev.pageX, y = ev.pageY;
+    const hit = beats.find(b => x >= b.x && x <= b.x + Math.max(b.w, 12) && y >= b.y && y <= b.y + b.h)
+      || beats.filter(b => y >= b.y && y <= b.y + b.h).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
+    if (hit) bridge().onBeatTapped(hit.start);
+  });
   window.setCursor = (tick) => {
     const c = document.getElementById('cursor');
     if (tick === null || tick === undefined || tick < 0) { c.style.display = 'none'; return; }

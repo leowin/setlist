@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -128,7 +129,7 @@ fun EditorScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score
 
             TransportRow(vm, score, instrument, onLoop = { showLoop = true })
 
-            InputPanel(vm, score, instrument, assignPads, Modifier.height(if (instrument == Instrument.DRUMS) 120.dp else 150.dp).background(Color(0xFF1A1A1A)))
+            InputPanel(vm, score, instrument, assignPads, Modifier.height(if (instrument == Instrument.DRUMS) 120.dp else 150.dp).background(Color(0xFF1A1A1A)).navigationBarsPadding())
         }
     }
 
