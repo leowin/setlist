@@ -1,0 +1,30 @@
+# Xcode project spec for XcodeGen (https://github.com/yonaskolb/XcodeGen):
+#   cd iosApp && xcodegen generate && open Setlist.xcodeproj
+name: Setlist
+options:
+  bundleIdPrefix: at.zentriert
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  Setlist:
+    type: application
+    platform: iOS
+    sources: [iosApp]
+    info:
+      path: iosApp/Info.plist
+      properties:
+        CFBundleDisplayName: Setlist
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIRequiresFullScreen: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: at.zentriert.setlist
+        FRAMEWORK_SEARCH_PATHS: $(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+        OTHER_LDFLAGS: $(inherited) -framework Shared
+        ENABLE_USER_SCRIPT_SANDBOXING: false
+    preBuildScripts:
+      - name: Build Kotlin shared framework
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode

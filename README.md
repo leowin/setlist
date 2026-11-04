@@ -24,14 +24,23 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
   Helligkeit) – ein Tippen oder ein Pedaldruck schaltet sofort wieder ein, ohne Sperrbildschirm.
 
+## Aufbau
+
+Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS gebaut werden kann:
+
+- `shared/` – Modell, Logik und die ganze Oberfläche (`commonMain`); Plattform-Details wie
+  Bildschirm wach halten, Teilen und Einstellungen in `androidMain` / `iosMain`.
+- `androidApp/` – Android-Einstieg (Activity, Manifest, Icon, Tasten/Pedal, „Senden“-Import).
+- `iosApp/` – iOS-Einstieg (Swift + XcodeGen-Spec), siehe `iosApp/README.md`.
+
 ## Bauen
 
 Benötigt JDK 17+ und das Android SDK (`local.properties` mit `sdk.dir=…` oder `ANDROID_HOME`).
 
 ```
-./gradlew testDebugUnitTest assembleRelease
+./gradlew :shared:testDebugUnitTest :androidApp:assembleRelease
 ```
 
-Die APK liegt danach unter `app/build/outputs/apk/release/app-release.apk` (mit dem Debug-Schlüssel
-signiert, also direkt installierbar). GitHub Actions baut sie bei jedem Push ebenfalls
-(Artefakt `setlist-apk`).
+Die APK liegt danach unter `androidApp/build/outputs/apk/release/androidApp-release.apk` (mit dem
+Debug-Schlüssel signiert, also direkt installierbar). GitHub Actions baut sie bei jedem Push ebenfalls
+(Artefakt `setlist-apk`) und kompiliert das iOS-Framework auf einem macOS-Runner.

@@ -1,0 +1,16 @@
+package at.zentriert.setlist
+
+import androidx.compose.runtime.remember
+import androidx.compose.ui.window.ComposeUIViewController
+import androidx.lifecycle.viewmodel.compose.viewModel
+import at.zentriert.setlist.ui.App
+import kotlinx.io.files.Path
+import platform.UIKit.UIViewController
+
+/** Entry point for the iOS app (called from Swift). */
+@Suppress("unused", "FunctionName")
+fun MainViewController(): UIViewController = ComposeUIViewController {
+    val container = remember { AppContainer(Path(documentsDirectory()), UserDefaultsStore()) }
+    val vm = viewModel { MainViewModel(container.repository, container.settingsStore) }
+    App(vm)
+}

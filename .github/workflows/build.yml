@@ -1,11 +1,11 @@
-name: Build APK
+name: Build
 
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  build:
+  android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,8 +14,20 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew testDebugUnitTest assembleRelease
+      - run: ./gradlew :shared:testDebugUnitTest :androidApp:assembleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: setlist-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: androidApp/build/outputs/apk/release/androidApp-release.apk
+
+  ios-framework:
+    # Compiles the shared Kotlin module for iOS; the app itself is built with Xcode (see iosApp/README.md).
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
