@@ -46,8 +46,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,9 +59,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.PerformSettings
+import at.zentriert.setlist.Score
 import at.zentriert.setlist.Setlist
 import at.zentriert.setlist.Song
 import at.zentriert.setlist.StageEffects
+import at.zentriert.setlist.NotationView
+import at.zentriert.setlist.notation.AlphaTex
+import androidx.compose.material.icons.filled.LibraryMusic
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.ui.metronome.BeatBackground
 import at.zentriert.setlist.ui.metronome.MetronomeBar
@@ -95,17 +99,21 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                 onNextCount = { vm.updateSettings { it.copy(nextCount = if (it.nextCount == 1) 2 else 1) } },
                 onKeepOn = { vm.updateSettings { it.copy(keepScreenOn = !it.keepScreenOn) } },
                 onScreenOff = vm::screenOff,
+                onNotation = { vm.updateSettings { it.copy(performNotation = !it.performNotation) } },
             )
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val upcoming = (1..settings.nextCount).map { songs.getOrNull(index + it) }
                 val current = songs.getOrNull(index)
                 val beats = vm.metronomePosition
                 val numerator = vm.tempoFor(current).numerator
+                val score = vm.score(current)
+                val notation = settings.performNotation && score != null && score.parts.any { it.notes.isNotEmpty() }
                 if (maxWidth > maxHeight) {
                     Row(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1.4f).fillMaxHeight()) {
                             BeatBackground(beats, numerator)
-                            CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
+                            if (notation && score != null) PerformNotation(vm, current!!, score, settings.fontSize)
+                            else CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
                         }
                         VerticalDivider(color = DimColor.copy(alpha = 0.4f))
                         Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -116,7 +124,8 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                     Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1.4f).fillMaxWidth()) {
                             BeatBackground(beats, numerator)
-                            CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
+                            if (notation && score != null) PerformNotation(vm, current!!, score, settings.fontSize)
+                            else CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
                         }
                         HorizontalDivider(color = DimColor.copy(alpha = 0.4f))
                         UpcomingSongs(upcoming, index, settings.fontSize)
@@ -179,6 +188,7 @@ private fun TopStrip(
     onNextCount: () -> Unit,
     onKeepOn: () -> Unit,
     onScreenOff: () -> Unit,
+    onNotation: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Beenden", tint = DimColor) }
@@ -204,6 +214,9 @@ private fun TopStrip(
         TextButton(onClick = onNextCount) {
             Text("+${settings.nextCount}", color = DimColor, fontSize = 18.sp)
         }
+        IconButton(onClick = onNotation) {
+            Icon(Icons.Default.LibraryMusic, "Noten statt Text", tint = if (settings.performNotation) Amber else DimColor)
+        }
         IconButton(onClick = onKeepOn) {
             Icon(
                 if (settings.keepScreenOn) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
@@ -214,6 +227,28 @@ private fun TopStrip(
         IconButton(onClick = onScreenOff) {
             Icon(Icons.Default.PowerSettingsNew, "Bildschirm aus", tint = DimColor)
         }
+    }
+}
+
+/** Sheet music of my instrument (or the first part) in the concert view, title on top. */
+@Composable
+private fun PerformNotation(vm: MainViewModel, song: Song, score: Score, fontSize: Float) {
+    val settings = vm.settings
+    val instrument = settings.myInstrument?.takeIf { inst -> score.parts.any { it.instrument == inst && it.notes.isNotEmpty() } }
+        ?: score.parts.first { it.notes.isNotEmpty() }.instrument
+    val view = AlphaTex.View.entries.getOrElse(settings.notationView) { AlphaTex.View.BOTH }
+    val tex = remember(score, instrument, view) { AlphaTex.render(score, song.title, listOf(instrument), view) }
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            song.title,
+            color = Color.White,
+            fontSize = (fontSize * 1.1f).sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        NotationView(tex, vm.notationCursor(score), settings.notationScale, Modifier.weight(1f).fillMaxWidth())
     }
 }
 

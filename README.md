@@ -39,6 +39,11 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Drumpads, frei belegbar („Pads belegen“). **Einspielen** mit Vorzähler und Metronom, optional als Loop
   über Takte, Ersetzen oder Overdub, Quantisierung mit Raster und Stärke; **Schritt-Eingabe** setzt Noten
   am Cursor. Die Latenz zwischen Tippen und Klang wird mit „Im Takt tippen“ kalibriert und herausgerechnet.
+- **Notenbild & Tabs** (♫ im Noten-Bildschirm): klassische Notation mit alphaTab – Bass und Gitarre
+  wahlweise als Noten, Tab oder beides (Bundzuordnung automatisch), Gesang als Notenzeile, Schlagzeug als
+  Schlagzeugnotation. Beim Abspielen folgt ein Cursor. In der Konzertansicht schaltet ♫ zwischen den
+  Text-Anweisungen und den Noten des eigenen Instruments um. Rhythmen werden auf 1/32 quantisiert,
+  längere Werte als gebundene Noten geschrieben; Triolen erscheinen vorerst als nächstliegende gerade Werte.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
@@ -52,6 +57,8 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
   Bildschirm wach halten, Teilen und Einstellungen in `androidMain` / `iosMain`.
 - `androidApp/` – Android-Einstieg (Activity, Manifest, Icon, Tasten/Pedal, „Senden“-Import).
 - `iosApp/` – iOS-Einstieg (Swift + XcodeGen-Spec), siehe `iosApp/README.md`.
+- `shared/web/alphatab/` – alphaTab (MPL-2.0) samt Bravura-Schrift (OFL) für das Notenbild; Android liefert
+  den Ordner als Assets aus, iOS bindet ihn als Bundle-Ressource ein.
 - `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
   Android; iOS-Backend folgt. Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
   Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.

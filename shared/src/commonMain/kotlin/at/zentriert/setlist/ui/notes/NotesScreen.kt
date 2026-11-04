@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeOff
@@ -75,6 +76,9 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
                     IconButton(onClick = { vm.closeNotes(setlistId) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück") }
                 },
                 actions = {
+                    if (score != null && score.parts.any { it.notes.isNotEmpty() }) {
+                        IconButton(onClick = { vm.openNotation(setlistId, song.id) }) { Icon(Icons.Default.LibraryMusic, "Notenbild / Tabs") }
+                    }
                     IconButton(onClick = pickFile) { Icon(Icons.Default.FileOpen, "MIDI importieren") }
                 },
             )

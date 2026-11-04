@@ -1,15 +1,10 @@
 # ninja log v5
-567	591	1793809936835567716	libaudiocore.a	e59b867f191ff9fc
-13	938	1793809937183567708	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	f077e893ea9bfc6f
-1146	1180	1793809937427567703	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/x86_64/libsetlistaudio.so	79415bcf58b34052
-5	1146	1793809937387567704	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f9823c9e7d41698d
-0	566	1793809936811567717	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	d4c8f00ee2b9a78a
-2	706	1793812373902874393	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	d4c8f00ee2b9a78a
-7	1222	1793812374422874381	CMakeFiles/audiocore.dir/src/Synth.cpp.o	29870a18939d4062
 1222	1245	1793812374450874381	libaudiocore.a	22d54bf9f59111d7
-10	1264	1793812374466874380	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	f077e893ea9bfc6f
-9	1290	1793812374490874380	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f9823c9e7d41698d
-1290	1322	1793812374530874379	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/x86_64/libsetlistaudio.so	79415bcf58b34052
 6	816	1793813279986853669	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	f077e893ea9bfc6f
-2	959	1793813280126853666	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f9823c9e7d41698d
+7	1222	1793812374422874381	CMakeFiles/audiocore.dir/src/Synth.cpp.o	29870a18939d4062
 960	988	1793813280158853665	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/x86_64/libsetlistaudio.so	79415bcf58b34052
+2	959	1793813280126853666	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f9823c9e7d41698d
+2	706	1793812373902874393	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	d4c8f00ee2b9a78a
+8	971	1793814316518829961	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	242f37572d787c2e
+2	999	1793814316542829960	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	5d66d13ac1e0a375
+999	1038	1793814316594829959	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/x86_64/libsetlistaudio.so	125f6eec384deca0

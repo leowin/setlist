@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  html, body { margin: 0; background: #101010; color: #eee; overscroll-behavior: none; }
+  #wrap { position: relative; }
+  #at { padding: 4px 6px 40px 6px; }
+  #cursor { position: absolute; display: none; pointer-events: none; background: rgba(255,193,7,.28); border-left: 3px solid #ffc107; }
+  #msg { padding: 24px; color: #9e9e9e; font: 15px sans-serif; }
+</style>
+<script src="alphaTab.min.js"></script>
+</head>
+<body>
+<div id="wrap"><div id="at"></div><div id="cursor"></div></div>
+<div id="msg"></div>
+<script>
+  // Hosted by the app's NotationView; the app calls renderTex() and setCursor().
+  const bridge = () => window.Android || (window.webkit && window.webkit.messageHandlers && {
+    onRendered: () => window.webkit.messageHandlers.setlist.postMessage('rendered'),
+    onError: (m) => window.webkit.messageHandlers.setlist.postMessage('error:' + m),
+  }) || { onRendered() {}, onError(m) { console.error(m); } };
+
+  const settings = {
+    core: { fontDirectory: 'font/', engine: 'html5', useWorkers: false, logLevel: 'warning' },
+    display: {
+      scale: 1.0, layoutMode: 'page', staveProfile: 'default',
+      resources: {
+        staffLineColor: '#8a8a8a', barSeparatorColor: '#bdbdbd', mainGlyphColor: '#f5f5f5',
+        secondaryGlyphColor: '#cfcfcf', scoreInfoColor: '#f5f5f5', barNumberColor: '#ffc107',
+      },
+    },
+    notation: { elements: { scoreTitle: false, scoreSubTitle: false, scoreArtist: false, scoreAlbum: false, scoreWords: false, scoreMusic: false, scoreWordsAndMusic: false, scoreCopyright: false, effectTempo: true, effectDynamics: false } },
+    player: { enablePlayer: false, enableCursor: false },
+  };
+  const el = document.getElementById('at');
+  window.api_ref = () => api; const api = new alphaTab.AlphaTabApi(el, settings);
+  let beats = [];   // flattened beat bounds of the first staff for the cursor
+
+  api.renderFinished.on(() => {
+    document.getElementById('msg').textContent = '';
+    beats = [];
+    const lookup = api.renderer.boundsLookup;
+    if (lookup) for (const sys of lookup.staffSystems) for (const mb of sys.bars) {
+      const bar = mb.bars[0]; if (!bar) continue;
+      for (const b of bar.beats) beats.push({ start: b.beat.absolutePlaybackStart, end: b.beat.absolutePlaybackStart + b.beat.playbackDuration, x: b.visualBounds.x, w: b.visualBounds.w, y: mb.visualBounds.y, h: mb.visualBounds.h });
+    }
+    bridge().onRendered();
+  });
+  api.error.on(e => {
+    document.getElementById('msg').textContent = 'Noten konnten nicht dargestellt werden: ' + (e && e.message ? e.message : e);
+    bridge().onError(String(e && e.message ? e.message : e));
+  });
+
+  window.renderTex = (tex, scale) => {
+    api.settings.display.scale = scale || 1.0;
+    api.updateSettings();
+    document.getElementById('cursor').style.display = 'none';
+    api.tex(tex);
+  };
+  window.setCursor = (tick) => {
+    const c = document.getElementById('cursor');
+    if (tick === null || tick === undefined || tick < 0) { c.style.display = 'none'; return; }
+    const b = beats.find(b => tick >= b.start && tick < b.end);
+    if (!b) { c.style.display = 'none'; return; }
+    c.style.display = 'block';
+    c.style.left = b.x + 'px'; c.style.top = b.y + 'px'; c.style.width = Math.max(b.w, 8) + 'px'; c.style.height = b.h + 'px';
+    const top = window.scrollY, bottom = top + window.innerHeight;
+    if (b.y < top + 40 || b.y + b.h > bottom - 40) window.scrollTo({ top: Math.max(0, b.y - window.innerHeight / 3), behavior: 'smooth' });
+  };
+</script>
+</body>
+</html>

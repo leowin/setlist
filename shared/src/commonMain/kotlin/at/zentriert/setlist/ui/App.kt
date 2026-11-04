@@ -8,6 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.Screen
 import at.zentriert.setlist.ui.editor.EditorScreen
+import at.zentriert.setlist.ui.notation.NotationScreen
 import at.zentriert.setlist.ui.notes.MidiImportScreen
 import at.zentriert.setlist.ui.notes.NotesScreen
 
@@ -33,6 +34,12 @@ fun App(vm: MainViewModel) {
                     ?.let { NotesScreen(vm, screen.setlistId, it, scores[it.scoreId]) }
                     ?: LaunchedEffect(Unit) { vm.closeNotes(screen.setlistId) }
                 is Screen.MidiImport -> MidiImportScreen(vm, screen.state)
+                is Screen.Notation -> {
+                    val song = vm.findSong(screen.setlistId, screen.songId)
+                    val score = scores[song?.scoreId]
+                    if (song != null && score != null) NotationScreen(vm, screen.setlistId, song, score)
+                    else LaunchedEffect(Unit) { vm.closeNotes(screen.setlistId) }
+                }
                 is Screen.Editor -> {
                     val song = vm.findSong(screen.setlistId, screen.songId)
                     val score = scores[song?.scoreId]

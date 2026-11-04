@@ -37,6 +37,7 @@ sealed interface Screen {
     data class Notes(val setlistId: String?, val songId: String) : Screen
     class MidiImport(val state: MidiImportState) : Screen
     data class Editor(val setlistId: String?, val songId: String, val instrument: Instrument) : Screen
+    data class Notation(val setlistId: String?, val songId: String) : Screen
 }
 
 /** Where an imported score should go. */
@@ -123,7 +124,7 @@ class MainViewModel(
     }
 
     private fun leavePerformance() {
-        if (screen is Screen.Perform || screen is Screen.Notes || screen is Screen.Editor) {
+        if (screen is Screen.Perform || screen is Screen.Notes || screen is Screen.Editor || screen is Screen.Notation) {
             if (recording) recording = false
             stopMetronome()
             stopPlayback()
@@ -132,6 +133,10 @@ class MainViewModel(
     }
 
     fun openNotes(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notes(setlistId, songId) }
+    fun openNotation(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notation(setlistId, songId) }
+
+    /** Playback position in alphaTab ticks (960 per quarter), for the notation cursor. */
+    fun notationCursor(score: Score): Long? = playbackTick?.let { it * 960 / score.ppq }
 
     /** Back from the notes screen returns to where it was opened. */
     fun closeNotes(setlistId: String?) = if (setlistId != null) edit(setlistId) else openLibrary()

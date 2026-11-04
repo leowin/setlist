@@ -1,15 +1,10 @@
 # ninja log v5
-600	631	1793809840871569911	libaudiocore.a	e59b867f191ff9fc
-933	968	1793809841211569904	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/arm64-v8a/libsetlistaudio.so	81335d32fbe41492
-6	932	1793809841171569904	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5fc31ed72fd25103
-6	850	1793809841091569906	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	ae587e9263f391b6
-0	599	1793809840831569912	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	e02d1b07221062ae
-345	9104	1793812276318876625	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	e02d1b07221062ae
-346	9572	1793812276810876614	CMakeFiles/audiocore.dir/src/Synth.cpp.o	74f7009964d4f89f
 9572	10619	1793812277854876590	libaudiocore.a	22d54bf9f59111d7
-348	11098	1793812278334876579	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5fc31ed72fd25103
-346	11162	1793812278394876578	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	ae587e9263f391b6
-11163	15137	1793812282378876487	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/arm64-v8a/libsetlistaudio.so	81335d32fbe41492
-7	1194	1793813156914856484	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5fc31ed72fd25103
-3	1295	1793813157018856482	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	ae587e9263f391b6
 1295	1365	1793813157086856480	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/arm64-v8a/libsetlistaudio.so	81335d32fbe41492
+7	1194	1793813156914856484	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	5fc31ed72fd25103
+346	9572	1793812276810876614	CMakeFiles/audiocore.dir/src/Synth.cpp.o	74f7009964d4f89f
+3	1295	1793813157018856482	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	ae587e9263f391b6
+345	9104	1793812276318876625	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	e02d1b07221062ae
+2	1066	1793814237906831759	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	b342a01e2512810
+2	1130	1793814237970831758	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	8b21937b40fd4687
+1131	1211	1793814238054831756	/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/arm64-v8a/libsetlistaudio.so	5ab687efedc1d3e

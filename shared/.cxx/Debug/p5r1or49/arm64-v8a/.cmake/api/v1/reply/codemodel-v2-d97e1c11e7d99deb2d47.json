@@ -6,7 +6,7 @@
 			[
 				{
 					"build" : ".",
-					"jsonFile" : "directory-.-RelWithDebInfo-f5ebdc15457944623624.json",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
 					"minimumCMakeVersion" : 
 					{
 						"string" : "3.6.0"
@@ -20,7 +20,7 @@
 					]
 				}
 			],
-			"name" : "RelWithDebInfo",
+			"name" : "Debug",
 			"projects" : 
 			[
 				{
@@ -41,14 +41,14 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "audiocore::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-audiocore-RelWithDebInfo-1e7d1ebb9e4a3e05d41f.json",
+					"jsonFile" : "target-audiocore-Debug-bdac540d0cc2197cdf82.json",
 					"name" : "audiocore",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "setlistaudio::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-setlistaudio-RelWithDebInfo-55d0c383e5b5389d574f.json",
+					"jsonFile" : "target-setlistaudio-Debug-62414627dea02987392a.json",
 					"name" : "setlistaudio",
 					"projectIndex" : 0
 				}
@@ -58,7 +58,7 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/user/setlist/shared/.cxx/RelWithDebInfo/6lsi3l3z/armeabi-v7a",
+		"build" : "/home/user/setlist/shared/.cxx/Debug/p5r1or49/arm64-v8a",
 		"source" : "/home/user/setlist/audio"
 	},
 	"version" : 

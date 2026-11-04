@@ -1,15 +1,10 @@
 # ninja log v5
-1191	1217	1793809933151567801	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	7be641f5c47c05bb
-745	770	1793809932703739794	libaudiocore.a	e59b867f191ff9fc
-4	1191	1793809933123567801	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	c5f20300746c6742
-1	1015	1793809932947567805	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f94a60e364159da7
-0	737	1793809932667567812	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
-4	430	1793812369490874494	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
-8	978	1793812370038874482	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	c5f20300746c6742
-6	1026	1793812370082874481	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f94a60e364159da7
-6	1075	1793812370134874479	CMakeFiles/audiocore.dir/src/Synth.cpp.o	4e2cf5a9bd42306e
-1075	1088	1793812370155699516	libaudiocore.a	22d54bf9f59111d7
-1088	1118	1793812370178874478	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	7be641f5c47c05bb
-3	874	1793813278070853713	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	c5f20300746c6742
-3	903	1793813278098853712	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f94a60e364159da7
 903	931	1793813278130853711	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	7be641f5c47c05bb
+1075	1088	1793812370155699516	libaudiocore.a	22d54bf9f59111d7
+3	874	1793813278070853713	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	c5f20300746c6742
+6	1075	1793812370134874479	CMakeFiles/audiocore.dir/src/Synth.cpp.o	4e2cf5a9bd42306e
+3	903	1793813278098853712	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	f94a60e364159da7
+4	430	1793812369490874494	CMakeFiles/audiocore.dir/src/Metronome.cpp.o	7b8b404385a27d5e
+4	752	1793814312906830044	CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o	fb442b13da57562a
+3	852	1793814313002830041	CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o	af7d6993899ece68
+852	883	1793814313038830041	/home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/arm64-v8a/libsetlistaudio.so	59f8e0b931ad8374

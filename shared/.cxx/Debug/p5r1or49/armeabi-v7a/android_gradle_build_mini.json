@@ -22,7 +22,7 @@
       "abi": "armeabi-v7a",
       "output": "/home/user/setlist/shared/build/intermediates/cxx/Debug/p5r1or49/obj/armeabi-v7a/libsetlistaudio.so",
       "runtimeFiles": [
-        "/root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so"
+        "/root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so"
       ]
     },
     "audiocore::@6890427a1f51a3e7e1df": {

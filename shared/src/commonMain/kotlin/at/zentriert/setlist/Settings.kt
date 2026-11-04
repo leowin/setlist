@@ -20,6 +20,11 @@ data class PerformSettings(
     val noteTriplet: Boolean = false,
     /** Recording replaces what is in the recorded range (true) or adds to it (false). */
     val recordReplace: Boolean = false,
+    /** Sheet music view: which staff kind for stringed instruments and the zoom. */
+    val notationView: Int = 2,
+    val notationScale: Float = 1.0f,
+    /** Concert view shows the notes of my instrument instead of the text instructions. */
+    val performNotation: Boolean = false,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -46,6 +51,9 @@ class SettingsStore(private val store: KeyValueStore) {
         noteDivision = store.getInt("noteDivision", 8),
         noteTriplet = store.getBoolean("noteTriplet", false),
         recordReplace = store.getBoolean("recordReplace", false),
+        notationView = store.getInt("notationView", 2),
+        notationScale = store.getFloat("notationScale", 1.0f),
+        performNotation = store.getBoolean("performNotation", false),
     )
 
     fun save(s: PerformSettings) {
@@ -64,5 +72,8 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putInt("noteDivision", s.noteDivision)
         store.putBoolean("noteTriplet", s.noteTriplet)
         store.putBoolean("recordReplace", s.recordReplace)
+        store.putInt("notationView", s.notationView)
+        store.putFloat("notationScale", s.notationScale)
+        store.putBoolean("performNotation", s.performNotation)
     }
 }

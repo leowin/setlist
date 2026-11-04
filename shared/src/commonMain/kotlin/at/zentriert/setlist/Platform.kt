@@ -1,6 +1,7 @@
 package at.zentriert.setlist
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 
 /** Milliseconds since the Unix epoch. */
 expect fun currentTimeMillis(): Long
@@ -33,3 +34,10 @@ expect fun rememberShareText(): (title: String, text: String) -> Unit
 /** Returns a function that opens the system file picker; the chosen file arrives as bytes + name. */
 @Composable
 expect fun rememberFilePicker(onPicked: (bytes: ByteArray, name: String) -> Unit): () -> Unit
+
+/**
+ * Sheet music/tabs rendered by the bundled alphaTab (web/alphatab) in a web view.
+ * [cursorTick] is in alphaTab ticks (960 per quarter) or null for no cursor.
+ */
+@Composable
+expect fun NotationView(tex: String, cursorTick: Long?, scale: Float, modifier: Modifier)

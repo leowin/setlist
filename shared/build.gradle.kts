@@ -43,6 +43,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
             implementation(libs.oboe)
+            implementation(libs.androidx.webkit)
         }
     }
 }
@@ -69,6 +70,8 @@ android {
         }
     }
     buildFeatures { prefab = true }
+    // The alphaTab viewer (HTML/JS/fonts) is shared with iOS; Android serves it as assets.
+    sourceSets.getByName("main").assets.srcDirs("web")
     lint {
         // The lint checks shipped with the multiplatform lifecycle 2.9 artifacts crash on AGP 8.7's lint.
         disable += "NullSafeMutableLiveData"

@@ -92,7 +92,7 @@ build CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o: CXX_COMPILER__se
   DEFINES = -Dsetlistaudio_EXPORTS
   DEP_FILE = CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o.d
   FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -O2 -std=gnu++17
-  INCLUDES = -I/home/user/setlist/audio/src -isystem /root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/include
+  INCLUDES = -I/home/user/setlist/audio/src -isystem /root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/include
   OBJECT_DIR = CMakeFiles/setlistaudio.dir
   OBJECT_FILE_DIR = CMakeFiles/setlistaudio.dir/src/android
 
@@ -100,7 +100,7 @@ build CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o: CXX_COMPILER__setlistau
   DEFINES = -Dsetlistaudio_EXPORTS
   DEP_FILE = CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o.d
   FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -O2 -std=gnu++17
-  INCLUDES = -I/home/user/setlist/audio/src -isystem /root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/include
+  INCLUDES = -I/home/user/setlist/audio/src -isystem /root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/include
   OBJECT_DIR = CMakeFiles/setlistaudio.dir
   OBJECT_FILE_DIR = CMakeFiles/setlistaudio.dir/src/android
 
@@ -112,10 +112,10 @@ build CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o: CXX_COMPILER__setlistau
 #############################################
 # Link the shared library /home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/armeabi-v7a/libsetlistaudio.so
 
-build /home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/armeabi-v7a/libsetlistaudio.so: CXX_SHARED_LIBRARY_LINKER__setlistaudio_RelWithDebInfo CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o | libaudiocore.a /root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so || libaudiocore.a
+build /home/user/setlist/shared/build/intermediates/cxx/RelWithDebInfo/6lsi3l3z/obj/armeabi-v7a/libsetlistaudio.so: CXX_SHARED_LIBRARY_LINKER__setlistaudio_RelWithDebInfo CMakeFiles/setlistaudio.dir/src/android/OboeEngine.cpp.o CMakeFiles/setlistaudio.dir/src/android/jni.cpp.o | libaudiocore.a /root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so || libaudiocore.a
   LANGUAGE_COMPILE_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security   -O2 -g -DNDEBUG
   LINK_FLAGS = -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments  -Wl,--gc-sections
-  LINK_LIBRARIES = libaudiocore.a  /root/.gradle/caches/8.14.3/transforms/17e67d63ebac7302a386d22f5bf9a7ff/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so  -llog  -latomic -lm
+  LINK_LIBRARIES = libaudiocore.a  /root/.gradle/caches/8.14.3/transforms/a0aa2cef329cf90954fa155154514203/transformed/oboe-1.9.3/prefab/modules/oboe/libs/android.armeabi-v7a/liboboe.so  -llog  -latomic -lm
   OBJECT_DIR = CMakeFiles/setlistaudio.dir
   POST_BUILD = :
   PRE_LINK = :
