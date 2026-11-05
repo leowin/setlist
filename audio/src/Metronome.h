@@ -23,6 +23,9 @@ public:
 
     // Position in beats since bar 0 (negative during count-in). Only meaningful while running.
     double positionBeats() const { return positionBeats_.load(); }
+    // Engine frame where bar 0, beat 0 falls (after the count-in) and the beat length in frames at the start.
+    int64_t beatZeroFrame() const { return beatZeroFrame_.load(); }
+    double beatFrames() const { return beatFrames_.load(); }
 
     // Audio thread. Adds clicks to the mono buffer; `blockStartFrame` is the engine frame of out[0].
     void process(float* out, int frames, int64_t blockStartFrame);
@@ -38,6 +41,8 @@ private:
     std::atomic<int64_t> startFrame_{-1};
     std::atomic<double> phase_{0.0};
     std::atomic<double> positionBeats_{0.0};
+    std::atomic<int64_t> beatZeroFrame_{0};
+    std::atomic<double> beatFrames_{24000.0};
 
     ClickSynth synth_;
     int sampleRate_ = 48000;

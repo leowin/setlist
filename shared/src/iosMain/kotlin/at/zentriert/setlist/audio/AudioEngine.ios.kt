@@ -27,6 +27,15 @@ import at.zentriert.setlist.native.sl_set_transport
 import at.zentriert.setlist.native.sl_start
 import at.zentriert.setlist.native.sl_stop
 import at.zentriert.setlist.native.sl_stop_playback
+import at.zentriert.setlist.native.sl_set_listening
+import at.zentriert.setlist.native.sl_set_click_suppression
+import at.zentriert.setlist.native.sl_input_latency_nanos
+import at.zentriert.setlist.native.sl_poll_hits
+import at.zentriert.setlist.native.sl_calibration_add
+import at.zentriert.setlist.native.sl_calibration_clear
+import at.zentriert.setlist.native.sl_sequence_start_frame
+import at.zentriert.setlist.native.sl_beat_zero_frame
+import at.zentriert.setlist.native.sl_beat_frames
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -88,6 +97,23 @@ class IosAudioEngine : AudioEngine {
     override fun noteOn(part: Int, key: Int, velocity: Int) { ensureStream(); sl_note_on(handle, part, key, velocity) }
     override fun noteOff(part: Int, key: Int) = sl_note_off(handle, part, key)
     override fun outputLatencyNanos(): Long = sl_output_latency_nanos(handle)
+
+    override fun setListening(on: Boolean): Boolean = sl_set_listening(handle, if (on) 1 else 0) != 0
+    override fun setClickSuppression(on: Boolean) = sl_set_click_suppression(handle, if (on) 1 else 0)
+    override fun pollHits(): List<DetectedHit> {
+        val frames = LongArray(64); val classes = IntArray(64); val conf = FloatArray(64); val levels = FloatArray(64); val features = FloatArray(64 * HIT_FEATURES)
+        val n = frames.usePinned { f -> classes.usePinned { c -> conf.usePinned { k -> levels.usePinned { l -> features.usePinned { ft ->
+            sl_poll_hits(handle, f.addressOf(0), c.addressOf(0), k.addressOf(0), l.addressOf(0), ft.addressOf(0), 64)
+        } } } } }
+        return List(n) { i -> DetectedHit(frames[i], classes[i], conf[i], levels[i], features.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES)) }
+    }
+    override fun addCalibrationSample(cls: Int, features: FloatArray) { features.usePinned { sl_calibration_add(handle, cls, it.addressOf(0)) } }
+    override fun clearCalibration(cls: Int) = sl_calibration_clear(handle, cls)
+    override fun inputLatencyNanos(): Long = sl_input_latency_nanos(handle)
+    override fun sequenceStartFrame(): Long = sl_sequence_start_frame(handle)
+    override fun beatZeroFrame(): Long = sl_beat_zero_frame(handle)
+    override fun beatFrames(): Double = sl_beat_frames(handle)
+    override fun sampleRate(): Int = sl_sample_rate(handle)
     override fun suspendOutput() { sl_metronome_stop(handle); sl_stop_playback(handle); sl_stop(handle); streamRunning = false }
     override fun release() { handle?.let { sl_destroy(it) }; handle = null }
 }

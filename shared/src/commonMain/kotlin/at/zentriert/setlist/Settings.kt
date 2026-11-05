@@ -35,6 +35,10 @@ data class PerformSettings(
     val deviceId: String = "",
     /** The band whose songs and setlists are shown; null = private. */
     val currentBandId: String? = null,
+    /** Listening: microphone delay to subtract (ms), matching window (ms), grid subdivision (0 = like the metronome). */
+    val micOffsetMs: Int = 0,
+    val practiceWindowMs: Int = 120,
+    val practiceGrid: Int = 0,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -72,6 +76,9 @@ class SettingsStore(private val store: KeyValueStore) {
         serverUrl = store.getString("serverUrl", PerformSettings.DEFAULT_SERVER),
         deviceId = store.getString("deviceId", "").ifEmpty { newId().also { store.putString("deviceId", it) } },
         currentBandId = store.getString("currentBandId", "").ifEmpty { null },
+        micOffsetMs = store.getInt("micOffsetMs", 0),
+        practiceWindowMs = store.getInt("practiceWindowMs", 120),
+        practiceGrid = store.getInt("practiceGrid", 0),
     )
 
     fun save(s: PerformSettings) {
@@ -99,5 +106,8 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putString("serverUrl", s.serverUrl)
         store.putString("deviceId", s.deviceId)
         store.putString("currentBandId", s.currentBandId.orEmpty())
+        store.putInt("micOffsetMs", s.micOffsetMs)
+        store.putInt("practiceWindowMs", s.practiceWindowMs)
+        store.putInt("practiceGrid", s.practiceGrid)
     }
 }

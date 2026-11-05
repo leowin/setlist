@@ -159,3 +159,72 @@ Java_at_zentriert_setlist_audio_NativeAudio_sampleRate(JNIEnv*, jobject, jlong h
 }
 
 }  // extern "C"
+
+// --- listening (microphone) ---
+extern "C" {
+
+JNIEXPORT jboolean JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setListening(JNIEnv*, jobject, jlong h, jboolean on) {
+    return engine(h)->setListening(on == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setClickSuppression(JNIEnv*, jobject, jlong h, jboolean on) {
+    engine(h)->engine.listener.setClickSuppression(on == JNI_TRUE);
+}
+
+JNIEXPORT jlong JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_inputLatencyNanos(JNIEnv*, jobject, jlong h) {
+    return engine(h)->inputLatencyNanos();
+}
+
+// Fills up to `capacity` hits; features are kHitFeatures floats per hit. Returns the count.
+JNIEXPORT jint JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_pollHits(JNIEnv* env, jobject, jlong h, jlongArray frames, jintArray classes,
+                                                     jfloatArray confidences, jfloatArray levels, jfloatArray features) {
+    jsize capacity = env->GetArrayLength(frames);
+    std::vector<jlong> f; std::vector<jint> c; std::vector<jfloat> conf, lev, feat;
+    setlist::HitEvent e;
+    while (jsize(f.size()) < capacity && engine(h)->engine.listener.pop(e)) {
+        f.push_back(e.frame); c.push_back(e.cls); conf.push_back(e.confidence); lev.push_back(e.level);
+        feat.insert(feat.end(), e.features, e.features + setlist::kHitFeatures);
+    }
+    jsize n = jsize(f.size());
+    if (n == 0) return 0;
+    env->SetLongArrayRegion(frames, 0, n, f.data());
+    env->SetIntArrayRegion(classes, 0, n, c.data());
+    env->SetFloatArrayRegion(confidences, 0, n, conf.data());
+    env->SetFloatArrayRegion(levels, 0, n, lev.data());
+    env->SetFloatArrayRegion(features, 0, n * setlist::kHitFeatures, feat.data());
+    return n;
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_calibrationAdd(JNIEnv* env, jobject, jlong h, jint cls, jfloatArray features) {
+    if (env->GetArrayLength(features) < setlist::kHitFeatures) return;
+    jfloat* f = env->GetFloatArrayElements(features, nullptr);
+    engine(h)->engine.listener.classifier().add(cls, f);
+    env->ReleaseFloatArrayElements(features, f, JNI_ABORT);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_calibrationClear(JNIEnv*, jobject, jlong h, jint cls) {
+    engine(h)->engine.listener.classifier().clear(cls);
+}
+
+JNIEXPORT jlong JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_sequenceStartFrame(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.sequencer.startFrame();
+}
+
+JNIEXPORT jlong JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_beatZeroFrame(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.metronome.beatZeroFrame();
+}
+
+JNIEXPORT jdouble JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_beatFrames(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.metronome.beatFrames();
+}
+
+}  // extern "C"

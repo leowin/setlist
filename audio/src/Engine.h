@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include "CommandQueue.h"
+#include "Listener.h"
 #include "Metronome.h"
 #include "Sequencer.h"
 #include "Synth.h"
@@ -16,11 +17,13 @@ public:
     Sequencer sequencer;
     Synth synth;
     CommandQueue commands;
+    Listener listener;
 
     void setSampleRate(int sampleRate) {
         sampleRate_ = sampleRate;
         metronome.setSampleRate(sampleRate);
         synth.setSampleRate(sampleRate);
+        listener.setSampleRate(sampleRate);
         mono_.assign(8192, 0.0f);
     }
     int sampleRate() const { return sampleRate_; }

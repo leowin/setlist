@@ -41,4 +41,23 @@ int64_t sl_current_frame(sl_engine* e) { return E(e)->engine.currentFrame(); }
 int sl_sample_rate(sl_engine* e) { return E(e)->engine.sampleRate(); }
 int64_t sl_output_latency_nanos(sl_engine* e) { return E(e)->outputLatencyNanos(); }
 int64_t sl_nanos_for_frame(sl_engine* e, int64_t frame) { return E(e)->nanosForFrame(frame); }
+
+int sl_set_listening(sl_engine* e, int on) { return E(e)->setListening(on != 0) ? 1 : 0; }
+void sl_set_click_suppression(sl_engine* e, int on) { E(e)->engine.listener.setClickSuppression(on != 0); }
+int64_t sl_input_latency_nanos(sl_engine* e) { return E(e)->inputLatencyNanos(); }
+int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confidences, float* levels, float* features, int capacity) {
+    int n = 0;
+    setlist::HitEvent h;
+    while (n < capacity && E(e)->engine.listener.pop(h)) {
+        frames[n] = h.frame; classes[n] = h.cls; confidences[n] = h.confidence; levels[n] = h.level;
+        for (int i = 0; i < setlist::kHitFeatures; ++i) features[n * setlist::kHitFeatures + i] = h.features[i];
+        ++n;
+    }
+    return n;
+}
+void sl_calibration_add(sl_engine* e, int cls, const float* features) { E(e)->engine.listener.classifier().add(cls, features); }
+void sl_calibration_clear(sl_engine* e, int cls) { E(e)->engine.listener.classifier().clear(cls); }
+int64_t sl_sequence_start_frame(sl_engine* e) { return E(e)->engine.sequencer.startFrame(); }
+int64_t sl_beat_zero_frame(sl_engine* e) { return E(e)->engine.metronome.beatZeroFrame(); }
+double sl_beat_frames(sl_engine* e) { return E(e)->engine.metronome.beatFrames(); }
 }

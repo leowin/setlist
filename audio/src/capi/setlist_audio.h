@@ -39,6 +39,19 @@ int64_t sl_output_latency_nanos(sl_engine* e);
 // Time (CLOCK_UPTIME_RAW ns on Apple platforms) at which the given stream frame leaves the device; 0 if unknown.
 int64_t sl_nanos_for_frame(sl_engine* e, int64_t frame);
 
+// --- listening (microphone) ---
+#define SL_HIT_FEATURES 20
+int sl_set_listening(sl_engine* e, int on);
+void sl_set_click_suppression(sl_engine* e, int on);
+int64_t sl_input_latency_nanos(sl_engine* e);
+// Fills up to `capacity` hits (features: SL_HIT_FEATURES floats per hit); returns the count.
+int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confidences, float* levels, float* features, int capacity);
+void sl_calibration_add(sl_engine* e, int cls, const float* features);
+void sl_calibration_clear(sl_engine* e, int cls);
+int64_t sl_sequence_start_frame(sl_engine* e);
+int64_t sl_beat_zero_frame(sl_engine* e);
+double sl_beat_frames(sl_engine* e);
+
 #ifdef __cplusplus
 }
 #endif

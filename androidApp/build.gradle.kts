@@ -20,18 +20,28 @@ android {
         versionName = "1.3"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         // Host of the band server, so https://<host>/join and /s/… open in the app (see server/README.md).
-        // Set in gradle.properties / local.properties as setlist.appLinkHost=setlist-xyz.a.run.app
-        manifestPlaceholders["appLinkHost"] = (project.findProperty("setlist.appLinkHost") as String?)
-            ?: localProperty("setlist.appLinkHost") ?: "setlist.invalid"
+        // Set as Gradle property setlistAppLinkHost (CI: variable SETLIST_APP_LINK_HOST) or in local.properties.
+        manifestPlaceholders["appLinkHost"] = (project.findProperty("setlistAppLinkHost") as String?)?.takeIf { it.isNotBlank() }
+            ?: localProperty("setlistAppLinkHost") ?: "setlist.invalid"
     }
 
+    // Release signing: the keystore comes from the environment (CI secrets or a local shell), see README.
+    // Without it the APK is signed with the debug key, so a local build stays installable.
+    val keystorePath = System.getenv("SETLIST_KEYSTORE")?.takeIf { it.isNotBlank() && file(it).exists() }
+    signingConfigs {
+        if (keystorePath != null) create("release") {
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("SETLIST_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("SETLIST_KEY_ALIAS") ?: "setlist"
+            keyPassword = System.getenv("SETLIST_KEY_PASSWORD") ?: System.getenv("SETLIST_KEYSTORE_PASSWORD")
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key so the APK is installable without extra setup.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePath != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
     compileOptions {

@@ -22,9 +22,30 @@ static OSStatus renderCallback(void* refCon, AudioUnitRenderActionFlags*, const 
     return noErr;
 }
 
+static OSStatus inputCallback(void* refCon, AudioUnitRenderActionFlags* flags, const AudioTimeStamp* timestamp,
+                              UInt32 bus, UInt32 frames, AudioBufferList*) {
+    auto* self = static_cast<CoreAudioEngine*>(refCon);
+    if (self->inputBuffer.size() < frames) self->inputBuffer.resize(frames);
+    AudioBufferList list;
+    list.mNumberBuffers = 1;
+    list.mBuffers[0].mNumberChannels = 1;
+    list.mBuffers[0].mDataByteSize = frames * sizeof(float);
+    list.mBuffers[0].mData = self->inputBuffer.data();
+    if (AudioUnitRender(static_cast<AudioComponentInstance>(self->unit()), flags, timestamp, bus, frames, &list) != noErr) return noErr;
+    self->captured(self->inputBuffer.data(), int(frames), (timestamp->mFlags & kAudioTimeStampHostTimeValid) ? timestamp->mHostTime : 0);
+    return noErr;
+}
+
 bool CoreAudioEngine::open() {
     AVAudioSession* session = [AVAudioSession sharedInstance];
-    [session setCategory:AVAudioSessionCategoryPlayback withOptions:AVAudioSessionCategoryOptionMixWithOthers error:nil];
+    if (wantInput_) {
+        [session setCategory:AVAudioSessionCategoryPlayAndRecord
+                        mode:AVAudioSessionModeMeasurement
+                     options:AVAudioSessionCategoryOptionMixWithOthers | AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth
+                       error:nil];
+    } else {
+        [session setCategory:AVAudioSessionCategoryPlayback withOptions:AVAudioSessionCategoryOptionMixWithOthers error:nil];
+    }
     [session setPreferredIOBufferDuration:0.005 error:nil];
     [session setActive:YES error:nil];
     sampleRate_ = session.sampleRate > 0 ? session.sampleRate : 48000.0;
@@ -47,6 +68,16 @@ bool CoreAudioEngine::open() {
 
     AURenderCallbackStruct callback = {renderCallback, this};
     AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &callback, sizeof(callback));
+    if (wantInput_) {
+        UInt32 one = 1;
+        AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, 1, &one, sizeof(one));
+        AudioStreamBasicDescription inFormat = format;
+        inFormat.mChannelsPerFrame = 1; inFormat.mBytesPerFrame = 4; inFormat.mBytesPerPacket = 4;
+        AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 1, &inFormat, sizeof(inFormat));
+        AURenderCallbackStruct inCallback = {inputCallback, this};
+        AudioUnitSetProperty(unit, kAudioOutputUnitProperty_SetInputCallback, kAudioUnitScope_Global, 1, &inCallback, sizeof(inCallback));
+        inputLatencyNanos_.store(int64_t((session.inputLatency + session.IOBufferDuration) * 1e9));
+    }
     if (AudioUnitInitialize(unit) != noErr) { AudioComponentInstanceDispose(unit); return false; }
 
     engine.setSampleRate(int(sampleRate_));
@@ -81,6 +112,33 @@ void CoreAudioEngine::rendered(int64_t frameAtBlockStart, uint64_t hostTime, int
 }
 
 int64_t CoreAudioEngine::outputLatencyNanos() { return latencyNanos_.load(); }
+int64_t CoreAudioEngine::inputLatencyNanos() { return inputLatencyNanos_.load(); }
+
+bool CoreAudioEngine::setListening(bool on) {
+    {
+        std::lock_guard<std::mutex> guard(lock_);
+        if (wantInput_ == on && unit_) { engine.listener.setEnabled(on); return true; }
+        wantInput_ = on;
+        engine.listener.setEnabled(on);
+    }
+    // The audio unit has to be rebuilt with the input bus enabled (or disabled).
+    stop();
+    return start();
+}
+
+void CoreAudioEngine::captured(const float* mono, int frames, uint64_t hostTime) {
+    // Put the captured block on the output clock: the input stamp says when the first sample hit the mic
+    // (less the input latency); the last render stamp says when the engine's frame reached the speaker.
+    int64_t outNanos = lastHostNanos_.load();
+    int64_t engineFrame;
+    if (hostTime != 0 && outNanos != 0) {
+        int64_t captureNanos = int64_t(hostTimeToNanos(hostTime)) - inputLatencyNanos_.load();
+        engineFrame = lastFrame_.load() + int64_t((captureNanos - (outNanos + latencyNanos_.load())) * sampleRate_ / 1e9);
+    } else {
+        engineFrame = engine.currentFrame() - int64_t((latencyNanos_.load() + inputLatencyNanos_.load()) * sampleRate_ / 1e9);
+    }
+    engine.listener.process(mono, frames, engineFrame);
+}
 
 int64_t CoreAudioEngine::nanosForFrame(int64_t frame) {
     int64_t t = lastHostNanos_.load();

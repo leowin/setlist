@@ -74,6 +74,23 @@ class AndroidAudioEngine : AudioEngine {
 
     override fun outputLatencyNanos(): Long = NativeAudio.outputLatencyNanos(handle)
 
+    private val hitFrames = LongArray(64); private val hitClasses = IntArray(64)
+    private val hitConf = FloatArray(64); private val hitLevels = FloatArray(64); private val hitFeatures = FloatArray(64 * HIT_FEATURES)
+
+    override fun setListening(on: Boolean): Boolean { if (on) ensureStream(); return NativeAudio.setListening(handle, on) }
+    override fun setClickSuppression(on: Boolean) = NativeAudio.setClickSuppression(handle, on)
+    override fun pollHits(): List<DetectedHit> {
+        val n = NativeAudio.pollHits(handle, hitFrames, hitClasses, hitConf, hitLevels, hitFeatures)
+        return List(n) { i -> DetectedHit(hitFrames[i], hitClasses[i], hitConf[i], hitLevels[i], hitFeatures.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES)) }
+    }
+    override fun addCalibrationSample(cls: Int, features: FloatArray) = NativeAudio.calibrationAdd(handle, cls, features)
+    override fun clearCalibration(cls: Int) = NativeAudio.calibrationClear(handle, cls)
+    override fun inputLatencyNanos(): Long = NativeAudio.inputLatencyNanos(handle)
+    override fun sequenceStartFrame(): Long = NativeAudio.sequenceStartFrame(handle)
+    override fun beatZeroFrame(): Long = NativeAudio.beatZeroFrame(handle)
+    override fun beatFrames(): Double = NativeAudio.beatFrames(handle)
+    override fun sampleRate(): Int = NativeAudio.sampleRate(handle)
+
     override fun suspendOutput() {
         NativeAudio.metronomeStop(handle)
         NativeAudio.stopPlayback(handle)

@@ -12,6 +12,8 @@ import at.zentriert.setlist.ui.editor.EditorScreen
 import at.zentriert.setlist.ui.notation.NotationScreen
 import at.zentriert.setlist.ui.notes.MidiImportScreen
 import at.zentriert.setlist.ui.notes.NotesScreen
+import at.zentriert.setlist.ui.practice.CalibrationScreen
+import at.zentriert.setlist.ui.practice.PracticeDialogs
 
 @Composable
 fun App(vm: MainViewModel) {
@@ -28,6 +30,7 @@ fun App(vm: MainViewModel) {
                 is Screen.Import -> ImportScreen(vm, screen.state)
                 Screen.Library -> LibraryScreen(vm, library, scores)
                 Screen.Band -> BandScreen(vm)
+                is Screen.Calibration -> CalibrationScreen(vm, screen.songId)
                 is Screen.Edit -> data.setlists.firstOrNull { it.id == screen.setlistId && !it.deleted }
                     ?.let { EditScreen(vm, it, data.library(it.bandId), scores) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }
@@ -53,6 +56,7 @@ fun App(vm: MainViewModel) {
                 }
             }
             LinkDialogs(vm)
+            PracticeDialogs(vm)
         }
     }
 }

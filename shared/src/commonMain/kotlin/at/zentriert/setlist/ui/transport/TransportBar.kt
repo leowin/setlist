@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
@@ -53,6 +54,8 @@ import at.zentriert.setlist.band.Role
 import at.zentriert.setlist.ui.Amber
 import at.zentriert.setlist.ui.TempoEditor
 import at.zentriert.setlist.ui.metronome.Dropdown
+import at.zentriert.setlist.ui.practice.TimingMeter
+import at.zentriert.setlist.rememberMicrophonePermission
 
 val DimColor = Color(0xFF9E9E9E)
 private val ButtonGray = Color(0xFF2A2A2A)
@@ -86,14 +89,20 @@ fun TransportBar(vm: MainViewModel, song: Song?, score: Score?, options: Transpo
     var showSettings by remember { mutableStateOf(false) }
     var editTempo by remember { mutableStateOf(false) }
     var withMetronome by remember { mutableStateOf(true) }
+    val requestMic = rememberMicrophonePermission { granted -> if (granted) vm.startListening() else vm.micError = "Ohne Mikrofon-Berechtigung kann die App nicht zuhören." }
 
+    Column(Modifier.fillMaxWidth().background(BarBackground).let { if (options.navigationPadding) it.navigationBarsPadding() else it }) {
+    if (vm.listening) TimingMeter(vm)
     Row(
-        Modifier.fillMaxWidth().background(BarBackground).let { if (options.navigationPadding) it.navigationBarsPadding() else it }
-            .height(56.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+        Modifier.fillMaxWidth().height(56.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Tune, "Metronom-Einstellungen (Unterteilung, Vorzähler, Lautstärke)", tint = DimColor) }
+        // Listening: the microphone rates what is played along.
+        IconButton(onClick = { if (vm.listening) vm.stopListening() else requestMic() }) {
+            Icon(Icons.Default.Hearing, if (vm.listening) "Zuhören aus" else "Zuhören: Spiel bewerten", tint = if (vm.listening) Amber else DimColor)
+        }
 
         if (options.recordInstrument != null && score != null) {
             Button(
@@ -190,6 +199,7 @@ fun TransportBar(vm: MainViewModel, song: Song?, score: Score?, options: Transpo
             FilterChip(selected = vm.stepInput, onClick = { vm.stepInput = !vm.stepInput }, label = { Text("Schritt") }, colors = chipColors())
         }
     }
+    }
 
     if (showSettings) MetronomeSettingsDialog(vm, song, onDismiss = { showSettings = false })
     if (editTempo && song != null) {
@@ -249,6 +259,8 @@ private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: (
                     selected = settings.countInBars,
                     onSelect = { v -> vm.updateMetronomeSettings(song) { it.copy(countInBars = v) } },
                 )
+                TextButton(onClick = { onDismiss(); vm.openCalibration(song?.id) }) { Text("Zuhören: Mikrofon & Trommeln justieren …") }
+                vm.micError?.let { Text(it, color = Color(0xFFEF5350)) }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },

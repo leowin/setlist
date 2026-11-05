@@ -5,6 +5,11 @@ import at.zentriert.setlist.currentTimeMillis
 /** One note on/off for the sequencer; seconds are relative to the start of playback. */
 data class PlaybackEvent(val seconds: Double, val part: Int, val key: Int, val velocity: Int)
 
+/** One hit the listener heard: engine frame (output clock), recognised pad or -1, loudness in dB, sound features. */
+data class DetectedHit(val frame: Long, val cls: Int, val confidence: Float, val levelDb: Float, val features: FloatArray)
+
+const val HIT_FEATURES = 20
+
 /** Thin facade over the native audio engine; one instance per process. */
 interface AudioEngine {
     // --- metronome ---
@@ -40,6 +45,22 @@ interface AudioEngine {
 
     /** Estimated delay between scheduling and sound leaving the speaker. */
     fun outputLatencyNanos(): Long
+
+    // --- listening (microphone) ---
+    /** Opens (or closes) the microphone for hit detection; false when it is not available. */
+    fun setListening(on: Boolean): Boolean
+    /** Ignore the metronome click in the microphone signal (speaker playback). */
+    fun setClickSuppression(on: Boolean)
+    fun pollHits(): List<DetectedHit>
+    fun addCalibrationSample(cls: Int, features: FloatArray)
+    fun clearCalibration(cls: Int)
+    fun inputLatencyNanos(): Long
+    /** Engine frame of sequence time 0 while playing (moves on loop wraps). */
+    fun sequenceStartFrame(): Long
+    /** Engine frame of bar 0 / beat 0 of the running metronome and the beat length in frames. */
+    fun beatZeroFrame(): Long
+    fun beatFrames(): Double
+    fun sampleRate(): Int
     /** Closes the output stream to save battery; it reopens on the next start. */
     fun suspendOutput()
     fun release()
@@ -91,6 +112,16 @@ class SilentAudioEngine : AudioEngine {
     override fun noteOff(part: Int, key: Int) {}
 
     override fun outputLatencyNanos() = 0L
+    override fun setListening(on: Boolean) = false
+    override fun setClickSuppression(on: Boolean) {}
+    override fun pollHits(): List<DetectedHit> = emptyList()
+    override fun addCalibrationSample(cls: Int, features: FloatArray) {}
+    override fun clearCalibration(cls: Int) {}
+    override fun inputLatencyNanos() = 0L
+    override fun sequenceStartFrame() = 0L
+    override fun beatZeroFrame() = 0L
+    override fun beatFrames() = 24000.0
+    override fun sampleRate() = 48000
     override fun suspendOutput() {}
     override fun release() {}
 }

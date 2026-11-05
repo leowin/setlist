@@ -54,3 +54,7 @@ interface Discovery {
     fun discover(onFound: (name: String, host: String, port: Int) -> Unit, onLost: (name: String) -> Unit)
     fun stopDiscovery()
 }
+
+/** Returns a function that asks for microphone access; [onResult] gets true when it is granted. */
+@Composable
+expect fun rememberMicrophonePermission(onResult: (Boolean) -> Unit): () -> Unit

@@ -31,6 +31,18 @@ import at.zentriert.setlist.midi.MidiFile
 import at.zentriert.setlist.midi.Smf
 import at.zentriert.setlist.res.Res
 import at.zentriert.setlist.sync.SharePayload
+import at.zentriert.setlist.practice.CalibrationData
+import at.zentriert.setlist.practice.Expected
+import at.zentriert.setlist.practice.HitMatcher
+import at.zentriert.setlist.practice.HitRecord
+import at.zentriert.setlist.practice.MatchedHit
+import at.zentriert.setlist.practice.Observed
+import at.zentriert.setlist.practice.PracticeSession
+import at.zentriert.setlist.practice.PracticeStore
+import at.zentriert.setlist.practice.Rating
+import at.zentriert.setlist.practice.RatingSummary
+import at.zentriert.setlist.audio.DetectedHit
+import at.zentriert.setlist.practice.MatchResult
 import at.zentriert.setlist.sync.SyncEngine
 import at.zentriert.setlist.sync.SyncStatus
 import io.ktor.client.HttpClient
@@ -60,6 +72,8 @@ sealed interface Screen {
     data class Editor(val setlistId: String?, val songId: String, val instrument: Instrument) : Screen
     data class Notation(val setlistId: String?, val songId: String) : Screen
     data object Band : Screen
+    /** Microphone calibration: drum sounds, latency. */
+    data class Calibration(val songId: String?) : Screen
 }
 
 /** Where an imported score should go. */
@@ -524,6 +538,7 @@ class MainViewModel(
     fun startMetronome(song: Song?) {
         audio.setClickVolume(settings.clickVolume)
         applyTransport(transportFor(song))
+        openTake(song, (score(song) ?: Score()).let { sc -> tempoFor(song).let { t -> sc.withTempo(t.bpm).withMeter(t.numerator, t.denominator) } }, 0, withNotes = false)
         if (bandRole == Role.HOST) {
             val t = transportFor(song)
             val at = referenceNow(START_LEAD_NANOS)
@@ -542,6 +557,7 @@ class MainViewModel(
 
     fun stopMetronome() {
         if (!metronomeOn && positionPoller == null) return
+        if (!playing) closeTake()
         if (bandRole == Role.HOST && metronomeOn) band?.broadcast(Msg.Stop(referenceNow(0)))
         audio.stopMetronome()
         positionPoller?.cancel()
@@ -588,6 +604,7 @@ class MainViewModel(
         private set
     private var playbackPoller: Job? = null
     private var playbackScore: Score? = null
+    private var playbackSong: Song? = null
     private var playbackFrom = 0L
     private var playbackOffset = 0.0
 
@@ -646,6 +663,7 @@ class MainViewModel(
         if (atNanos != null) audio.playAt(atNanos, withMetronome, metronomePhaseBeats = phaseBeats)
         else audio.play(leadSeconds = 0.15, withMetronome = withMetronome, metronomePhaseBeats = phaseBeats)
         playbackScore = score; playbackFrom = fromTick; playbackOffset = offset
+        openTake(playbackSong, score, fromTick, withNotes = true)
         playing = true
         metronomeOn = withMetronome
         playbackPoller?.cancel()
@@ -669,6 +687,7 @@ class MainViewModel(
     }
 
     private fun finishPlayback() {
+        closeTake()
         playing = false
         playbackTick = null
         metronomeOn = false
@@ -698,6 +717,7 @@ class MainViewModel(
     /** Play from the cursor; a tap on the notation sets the cursor and, while playing, jumps there. */
     fun playFromCursor(original: Score, withMetronome: Boolean = true, countIn: Boolean = startTick == 0L) {
         val score = withPerformTempo(original)
+        if (playbackSong?.scoreId != original.id) playbackSong = songOf(original)
         val from = startTick.coerceIn(0, ScorePlayback.lastTick(score))
         if (bandRole == Role.HOST && screen is Screen.Perform) {
             val at = referenceNow(START_LEAD_NANOS)
@@ -716,8 +736,14 @@ class MainViewModel(
     fun performPlay(song: Song?) {
         val score = score(song) ?: return
         if (score.parts.none { it.notes.isNotEmpty() }) return startMetronome(song)
+        playbackSong = song
         playFromCursor(score)
     }
+
+    /** Which song a score belongs to, for the practice history (library first, then setlists). */
+    private fun songOf(score: Score): Song? =
+        repo.data.value.library.firstOrNull { it.scoreId == score.id && !it.deleted }
+            ?: repo.data.value.setlists.flatMap { it.songs }.firstOrNull { it.scoreId == score.id }
 
     /** Live playing (pads/keys); while recording or in step input the press also becomes a note. */
     fun noteOn(score: Score, instrument: Instrument, key: Int, velocity: Int = 100) {
@@ -1122,8 +1148,168 @@ class MainViewModel(
     }
 
     override fun onCleared() {
+        stopListening()
         leaveBand()
         stopDiscovery()
+    }
+
+    // --- listening & rating ---
+
+    private val practiceStore by lazy { PracticeStore(repo.practiceDir) }
+    var calibration by mutableStateOf(CalibrationData())
+        private set
+    var listening by mutableStateOf(false)
+        private set
+    var micError by mutableStateOf<String?>(null)
+    /** Hits of the running take for the live needle (newest last). */
+    var liveHits by mutableStateOf<List<MatchedHit>>(emptyList())
+        private set
+    var liveSummary by mutableStateOf<RatingSummary?>(null)
+        private set
+    /** The finished take, shown as a summary until dismissed. */
+    var practiceResult by mutableStateOf<PracticeSession?>(null)
+    /** Pad being recorded in the calibration screen (null = live test). */
+    var calibratingPad by mutableStateOf<Int?>(null)
+    var lastRecognized by mutableStateOf<Pair<Int, Float>?>(null)
+        private set
+    var loopbackMeasuring by mutableStateOf(false)
+        private set
+    private var hitPoller: Job? = null
+    private var take: Take? = null
+    private var loopbackHits = ArrayList<Double>()
+
+    private class Take(val song: Song?, val score: Score, val part: Part?, val fromTick: Long, val mode: String, val heard: ArrayList<Observed> = ArrayList())
+
+    fun openCalibration(songId: String?) { leavePerformance(); screen = Screen.Calibration(songId); startListening() }
+
+    /** Microphone on (the UI has asked for the permission first). */
+    fun startListening(): Boolean {
+        if (listening) return true
+        if (!audio.setListening(true)) { micError = "Mikrofon nicht verfügbar – Berechtigung erteilt?"; return false }
+        audio.setClickSuppression(true)
+        if (calibration.samples.isEmpty()) calibration = practiceStore.calibration()
+        calibration.samples.forEach { (cls, list) -> list.forEach { audio.addCalibrationSample(cls, it.toFloatArray()) } }
+        listening = true
+        hitPoller?.cancel()
+        hitPoller = viewModelScope.launch {
+            while (isActive) { audio.pollHits().forEach(::onHit); delay(20) }
+        }
+        return true
+    }
+
+    fun stopListening() {
+        hitPoller?.cancel(); hitPoller = null
+        audio.setListening(false)
+        listening = false
+        calibratingPad = null
+        loopbackMeasuring = false
+    }
+
+    fun toggleListening(): Boolean = if (listening) { stopListening(); true } else startListening()
+
+    /** Called by playScore/startMetronome: a new take starts whenever something plays while listening. */
+    private fun openTake(song: Song?, score: Score, fromTick: Long, withNotes: Boolean) {
+        if (!listening || screen is Screen.Calibration) return
+        val part = if (withNotes) score.parts.firstOrNull { it.instrument == Instrument.DRUMS && it.notes.isNotEmpty() } else null
+        take = Take(song, score, part, fromTick, if (part != null) "score" else "grid")
+        liveHits = emptyList(); liveSummary = null
+    }
+
+    private fun onHit(hit: DetectedHit) {
+        val sr = audio.sampleRate().toDouble()
+        val frame = hit.frame - settings.micOffsetMs * sr.toLong() / 1000
+        if (screen is Screen.Calibration) {
+            if (loopbackMeasuring) {
+                val beats = (frame - audio.beatZeroFrame()) / audio.beatFrames()
+                val dev = (beats - kotlin.math.round(beats)) * audio.beatFrames() / sr * 1000.0
+                loopbackHits += dev + settings.micOffsetMs   // raw delay, independent of the current setting
+                return
+            }
+            calibratingPad?.let { pad ->
+                calibration = calibration.add(pad, hit.features)
+                audio.addCalibrationSample(pad, hit.features)
+                practiceStore.saveCalibration(calibration)
+                if (calibration.count(pad) >= 5) calibratingPad = null
+                lastRecognized = pad to 1f
+                return
+            }
+            lastRecognized = hit.cls to hit.confidence
+            return
+        }
+        val t = take ?: return
+        val seconds = when {
+            playing -> (frame - audio.sequenceStartFrame()) / sr - playbackOffset + TempoMap(t.score).tickToMicros(t.fromTick) / 1_000_000.0
+            metronomeOn -> (frame - audio.beatZeroFrame()) / audio.beatFrames() * t.score.meter.let { 60.0 / t.score.bpm * 4.0 / it.denominator }
+            else -> return
+        }
+        if (seconds < -0.2) return   // count-in
+        t.heard += Observed(seconds, hit.cls, hit.confidence, hit.levelDb)
+        val result = HitMatcher.match(expectedFor(t, seconds + 0.3), t.heard, settings.practiceWindowMs.toDouble())
+        liveHits = result.hits.takeLast(12)
+        liveSummary = Rating.summarize(MatchResult(result.hits, result.missed.filter { it.seconds < seconds - 0.3 }))
+    }
+
+    private fun expectedFor(t: Take, untilSeconds: Double): List<Expected> {
+        val map = TempoMap(t.score)
+        val untilTick = map.microsToTick((untilSeconds * 1_000_000).toLong())
+        return if (t.part != null) HitMatcher.expectedFromScore(t.score, t.part, t.fromTick, untilTick)
+        else HitMatcher.expectedFromGrid(t.score, settings.practiceGrid.takeIf { it > 0 } ?: settings.subdivision, t.fromTick, untilTick)
+    }
+
+    /** Playback or metronome stopped: rate the take and keep it. */
+    private fun closeTake() {
+        val t = take ?: return
+        take = null
+        if (t.heard.size < 2) { liveHits = emptyList(); liveSummary = null; return }
+        val lastHeard = t.heard.maxOf { it.seconds }
+        val result = HitMatcher.match(expectedFor(t, lastHeard + 0.05), t.heard, settings.practiceWindowMs.toDouble())
+        val barTicks = t.score.ppq * 4L / t.score.meter.denominator * t.score.meter.numerator
+        val map = TempoMap(t.score)
+        val bars = Rating.perBar(result, barOfTick = { (it / barTicks).toInt() + 1 }, barOfSeconds = { (map.microsToTick((it * 1_000_000).toLong()) / barTicks).toInt() + 1 })
+        val session = PracticeSession(
+            songId = t.song?.id ?: t.score.id, mode = t.mode, instrument = Instrument.DRUMS.name, bpm = t.score.bpm,
+            windowMs = settings.practiceWindowMs.toDouble(), summary = Rating.summarize(result), bars = bars,
+            hits = result.hits.map { HitRecord(it.observed.seconds, it.deviationMs, it.expected?.key, it.observed.key, it.expected?.tick) },
+        )
+        practiceStore.append(session)
+        practiceResult = session
+        liveHits = emptyList(); liveSummary = null
+    }
+
+    fun practiceHistory(songId: String): List<PracticeSession> = practiceStore.sessions(songId)
+
+    // Calibration screen
+    fun recordPad(pad: Int) { calibratingPad = pad; lastRecognized = null }
+    fun clearPad(pad: Int) {
+        calibration = calibration.clear(pad); audio.clearCalibration(pad); practiceStore.saveCalibration(calibration)
+    }
+
+    /** Plays clicks through the speaker and measures how late the microphone hears them. */
+    fun startLoopbackMeasure() {
+        if (!startListening()) return
+        stopPlayback(); stopMetronome()
+        loopbackHits.clear()
+        audio.setClickSuppression(false)
+        audio.setClickVolume(1f)
+        applyTransport(TransportConfig(60.0, 4, 4, 1, 0))
+        audio.startMetronome()
+        metronomeOn = true
+        loopbackMeasuring = true
+        viewModelScope.launch {
+            delay(9000)
+            if (!loopbackMeasuring) return@launch
+            audio.stopMetronome(); metronomeOn = false
+            audio.setClickSuppression(true)
+            audio.setClickVolume(settings.clickVolume)
+            loopbackMeasuring = false
+            val valid = loopbackHits.filter { kotlin.math.abs(it) < 400 }.sorted()
+            if (valid.size >= 4) {
+                val ms = valid[valid.size / 2].toInt()
+                updateSettings { it.copy(micOffsetMs = ms) }
+                calibration = calibration.copy(micOffsetMeasuredMs = ms); practiceStore.saveCalibration(calibration)
+                micError = null
+            } else micError = "Zu wenige Klicks gehört (${valid.size}) – Lautstärke hoch, Handy frei hinlegen."
+        }
     }
 
     fun updateSettings(transform: (PerformSettings) -> PerformSettings) {

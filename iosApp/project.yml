@@ -23,6 +23,7 @@ targets:
         UIRequiresFullScreen: false
         UIBackgroundModes: [audio]
         NSLocalNetworkUsageDescription: Setlist sucht andere Band-Mitglieder im WLAN, um Metronom und Noten synchron zu starten.
+        NSMicrophoneUsageDescription: Setlist hört beim Üben zu und bewertet, wie genau du zum Metronom spielst.
         NSBonjourServices: [_setlist._tcp]
     settings:
       base:

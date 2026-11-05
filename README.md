@@ -95,7 +95,20 @@ Benötigt JDK 17+ und das Android SDK (`local.properties` mit `sdk.dir=…` oder
 ./gradlew :shared:testDebugUnitTest :androidApp:assembleRelease
 ```
 
-Die APK liegt danach unter `androidApp/build/outputs/apk/release/androidApp-release.apk` (mit dem
-Debug-Schlüssel signiert, also direkt installierbar). GitHub Actions baut sie bei jedem Push ebenfalls
+Die APK liegt danach unter `androidApp/build/outputs/apk/release/androidApp-release.apk`.
+
+### Signieren
+
+Ohne weitere Angaben wird die APK mit dem Debug-Schlüssel signiert (lokal direkt installierbar, aber jeder
+Rechner hat einen anderen). Für Updates ohne Neuinstallation und für die App-Links signiert der
+GitHub-Workflow mit einem festen Release-Keystore, der als Secret hinterlegt ist:
+
+- `SETLIST_KEYSTORE_BASE64` – die `.jks`-Datei Base64-kodiert (`base64 -w0 setlist-release.jks`)
+- `SETLIST_KEYSTORE_PASSWORD` – Passwort von Keystore und Schlüssel (Alias `setlist`)
+- Variable `SETLIST_APP_LINK_HOST` – Host des Band-Servers für die App-Links (optional)
+
+Lokal dasselbe mit Umgebungsvariablen: `SETLIST_KEYSTORE=/pfad/setlist-release.jks
+SETLIST_KEYSTORE_PASSWORD=… ./gradlew :androidApp:assembleRelease`. Der Keystore gehört nicht ins Repo;
+wer ihn verliert, kann die installierte App nur noch durch Neuinstallation ersetzen. GitHub Actions baut sie bei jedem Push ebenfalls
 (Artefakt `setlist-apk`); das iOS-Framework lässt sich über „Run workflow“ auf einem macOS-Runner
 kompilieren (manueller Start, da macOS-Runner für dieses Repo nicht automatisch verfügbar sind).

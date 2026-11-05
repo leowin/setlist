@@ -61,6 +61,13 @@ void Metronome::process(float* out, int frames, int64_t blockStartFrame) {
                 bar_ = -current_.countInBars;
                 beat_ = sub_ = 0;
             }
+            {
+                double beatFrames = current_.beatSeconds() * sampleRate_;
+                int64_t absStart = blockStartFrame + int64_t(offset);
+                beatFrames_.store(beatFrames);
+                beatZeroFrame_.store(phase > 0.0 ? absStart - int64_t(phase * beatFrames)
+                                                  : absStart + int64_t(current_.countInBars * current_.numerator * beatFrames));
+            }
             running_.store(true);
         }
     }

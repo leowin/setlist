@@ -58,12 +58,11 @@ Danach:
 
 1. Die URL (`https://setlist-server-….run.app`) in der App unter **Band → Erweitert** eintragen – oder als
    Standard in `DEFAULT_SERVER` (`shared/…/Settings.kt`) setzen, dann ist sie in jeder App vorbelegt.
-2. Für App-Links `setlist.appLinkHost=setlist-server-….run.app` in `local.properties` (oder
-   `gradle.properties`) setzen und die APK neu bauen. Android prüft `assetlinks.json` beim Installieren;
-   dafür muss `ANDROID_SHA256` zum Signaturschlüssel der APK passen (Debug-Key:
-   `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
-   Ohne Verifizierung fragt Android beim Öffnen eines Links, womit er geöffnet werden soll – das
-   funktioniert ebenfalls.
+2. Für App-Links den Host als GitHub-Variable `SETLIST_APP_LINK_HOST` (z. B. `setlist-server-….run.app`)
+   bzw. lokal als `setlistAppLinkHost=…` in `local.properties` setzen und die APK neu bauen. Android prüft
+   `assetlinks.json` beim Installieren; dafür muss `ANDROID_SHA256` zum Signaturschlüssel der APK passen –
+   das ist der Release-Keystore aus dem GitHub-Workflow (siehe README „Signieren“). Ohne Verifizierung fragt
+   Android beim Öffnen eines Links, womit er geöffnet werden soll – das funktioniert ebenfalls.
 3. iOS: `IOS_APP_ID` setzen und in Xcode die Associated Domain `applinks:<host>` eintragen; die App reicht
    geöffnete URLs an `MainViewModel.openLink` weiter (siehe `iosApp/README.md`).
 

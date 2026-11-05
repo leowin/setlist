@@ -28,6 +28,8 @@ public:
     void stop() { stopRequested_.store(true); }
     bool playing() const { return playing_.load(); }
     double positionSeconds() const { return positionSeconds_.load(); }
+    // Engine frame of sequence time 0 (moves forward on each loop wrap).
+    int64_t startFrame() const { return startFrame_.load(); }
 
     // Audio thread
     void beginBlock(int64_t blockStart, int frames, int sampleRate) {

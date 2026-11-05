@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Platform-independent core: metronome, click synth, event sequencer.
-add_library(audiocore STATIC src/Metronome.cpp src/Synth.cpp)
+add_library(audiocore STATIC src/Metronome.cpp src/Synth.cpp src/Listener.cpp)
 target_include_directories(audiocore PUBLIC src)
 target_compile_options(audiocore PRIVATE -O2 -ffast-math -fno-exceptions)
 
@@ -31,4 +31,7 @@ else()
     add_executable(engine_test tests/engine_test.cpp)
     target_link_libraries(engine_test PRIVATE audiocore)
     add_test(NAME engine_test COMMAND engine_test ${CMAKE_CURRENT_SOURCE_DIR}/../shared/src/commonMain/composeResources/files/setlist.sf2)
+    add_executable(listener_test tests/listener_test.cpp)
+    target_link_libraries(listener_test PRIVATE audiocore)
+    add_test(NAME listener_test COMMAND listener_test)
 endif()

@@ -41,6 +41,8 @@ class SetlistRepository(private val dir: Path) {
     private val scoresDir = Path(dir, "scores")
     /** Where the band sync keeps what the server last agreed on. */
     val syncDir = Path(dir, "sync")
+    /** Practice takes and microphone calibration (private to this phone). */
+    val practiceDir = Path(dir, "practice")
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data.asStateFlow()
     private val _scores = MutableStateFlow(loadScores())
