@@ -172,7 +172,20 @@ class MainViewModel(
             stopPlayback()
             audio.suspendOutput()
         }
+        performBpm = null
+        startTick = 0
     }
+
+    // --- notation ---
+
+    /** Instrument shown in the sheet music; defaults to mine, else the first part with notes. */
+    var notationInstrumentChoice by mutableStateOf<Instrument?>(null)
+        private set
+    fun notationInstrument(score: Score): Instrument? {
+        val available = score.parts.filter { it.notes.isNotEmpty() }.map { it.instrument }
+        return notationInstrumentChoice?.takeIf { it in available } ?: settings.myInstrument?.takeIf { it in available } ?: available.firstOrNull()
+    }
+    fun selectNotationInstrument(instrument: Instrument) { notationInstrumentChoice = instrument }
 
     fun openNotes(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notes(setlistId, songId) }
     fun openNotation(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notation(setlistId, songId) }
@@ -549,8 +562,8 @@ class MainViewModel(
     }
 
     /** Tempo/meter edited from the concert view: saved into the song's score right away. */
-    fun setTempo(setlistId: String, song: Song, tempo: TempoEdit) {
-        saveSong(setlistId, song, tempo)
+    fun setTempo(setlistId: String?, song: Song, tempo: TempoEdit) {
+        if (setlistId != null) saveSong(setlistId, song, tempo) else saveLibrarySong(song, tempo)
         performBpm = null
         if (metronomeOn) {
             applyTransport(TransportConfig(tempo.bpm, tempo.numerator, tempo.denominator, settings.subdivision, settings.countInBars))
@@ -558,9 +571,9 @@ class MainViewModel(
     }
 
     /** Saves the nudged tempo into the song's score (shared with the library). */
-    fun adoptTempo(setlistId: String, song: Song) {
+    fun adoptTempo(setlistId: String?, song: Song) {
         val bpm = performBpm ?: return
-        saveSong(setlistId, song, tempoFor(song).copy(bpm = bpm))
+        setTempo(setlistId, song, tempoFor(song).copy(bpm = bpm))
         performBpm = null
     }
     fun screenOff() { blackout = true }
@@ -679,9 +692,8 @@ class MainViewModel(
         stopPlayback()
     }
 
-    /** In the concert view the ± tempo applies to the notes as well. */
-    private fun withPerformTempo(score: Score): Score =
-        if (screen is Screen.Perform) performBpm?.let { score.withTempo(it) } ?: score else score
+    /** The ± tempo of the transport bar applies to the notes as well, until the song changes. */
+    private fun withPerformTempo(score: Score): Score = performBpm?.let { score.withTempo(it) } ?: score
 
     /** Play from the cursor; a tap on the notation sets the cursor and, while playing, jumps there. */
     fun playFromCursor(original: Score, withMetronome: Boolean = true, countIn: Boolean = startTick == 0L) {

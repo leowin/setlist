@@ -1,40 +1,20 @@
 package at.zentriert.setlist.ui.metronome
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,18 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import at.zentriert.setlist.MainViewModel
-import at.zentriert.setlist.Setlist
-import at.zentriert.setlist.Song
-import at.zentriert.setlist.TempoEdit
-import at.zentriert.setlist.ui.TempoEditor
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.ui.Amber
 
 private val DimColor = Color(0xFF9E9E9E)
-private val ButtonGray = Color(0xFF2A2A2A)
 
 /**
  * Visible from across the stage: one column per beat behind the current song, the running beat
@@ -83,137 +56,6 @@ fun BeatBackground(position: MetronomePosition?, numerator: Int) {
             }
         }
     }
-}
-
-/** Start/stop, tempo display with ±, adopt button and metronome settings; sits above Zurück/Weiter. */
-@Composable
-fun MetronomeBar(vm: MainViewModel, setlist: Setlist, song: Song?) {
-    val tempo = vm.tempoFor(song)
-    val hasNotes = vm.score(song)?.parts?.any { it.notes.isNotEmpty() } == true
-    var showSettings by remember { mutableStateOf(false) }
-    var editTempo by remember { mutableStateOf(false) }
-
-    Row(
-        Modifier.fillMaxWidth().height(56.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Tune, "Metronom-Einstellungen (Unterteilung, Vorzähler, Lautstärke)", tint = DimColor) }
-        if (hasNotes) {
-            // With notes the bar drives the playback: notes + metronome (current settings and mixer).
-            Button(
-                onClick = { if (vm.playing) vm.pausePlayback() else vm.performPlay(song) },
-                enabled = vm.soundFontReady,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (vm.playing) Amber else ButtonGray,
-                    contentColor = if (vm.playing) Color.Black else Color.White,
-                ),
-                modifier = Modifier.fillMaxHeight().padding(vertical = 6.dp),
-            ) {
-                Icon(if (vm.playing) Icons.Default.Pause else Icons.Default.PlayArrow, null)
-                Spacer(Modifier.width(4.dp))
-                Text(if (vm.playing) "Pause" else "Play", fontSize = 16.sp)
-            }
-            IconButton(onClick = { vm.stopPlayback(); vm.stopMetronome(); vm.startTick = 0 }, enabled = vm.playing || vm.startTick > 0 || vm.metronomeOn) {
-                Icon(Icons.Default.Stop, "Stop, zum Anfang", tint = DimColor)
-            }
-        } else {
-            Button(
-                onClick = { vm.toggleMetronome(song) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (vm.metronomeOn) Amber else ButtonGray,
-                    contentColor = if (vm.metronomeOn) Color.Black else Color.White,
-                ),
-                modifier = Modifier.fillMaxHeight().padding(vertical = 6.dp),
-            ) {
-                Icon(if (vm.metronomeOn) Icons.Default.Stop else Icons.Default.PlayArrow, null)
-                Spacer(Modifier.width(4.dp))
-                Text("Metronom", fontSize = 16.sp)
-            }
-        }
-        IconButton(onClick = { vm.nudgeTempo(song, -1.0) }) { Icon(Icons.Default.Remove, "Langsamer", tint = DimColor) }
-        // Tap the tempo to edit BPM and meter for this song.
-        Column(
-            Modifier.clickable(enabled = song != null) { editTempo = true }.padding(horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("♩ ${tempo.label}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            if (!vm.hasOwnTempo(song)) {
-                Text(
-                    if (vm.performBpm != null) "geändert" else "Standard",
-                    color = DimColor,
-                    fontSize = 11.sp,
-                )
-            }
-        }
-        IconButton(onClick = { vm.nudgeTempo(song, 1.0) }) { Icon(Icons.Default.Add, "Schneller", tint = DimColor) }
-        if (vm.bandRole != null) {
-            Text(if (vm.bandRole == at.zentriert.setlist.band.Role.HOST) "HOST" else "BAND", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        }
-        if (vm.performBpm != null && song != null) {
-            TextButton(onClick = { vm.adoptTempo(setlist.id, song) }) { Text("Übernehmen", color = Amber) }
-        }
-        Text(
-            when (vm.settings.subdivision) { 2 -> "♪ Achtel"; 3 -> "♪ Triolen"; 4 -> "♪ 16tel"; else -> "♩ Viertel" },
-            color = DimColor, fontSize = 11.sp,
-            modifier = Modifier.clickable { showSettings = true }.padding(horizontal = 6.dp),
-        )
-    }
-
-    if (showSettings) MetronomeSettingsDialog(vm, song, onDismiss = { showSettings = false })
-    if (editTempo && song != null) {
-        TempoDialog(
-            initial = tempo,
-            onSave = { vm.setTempo(setlist.id, song, it); editTempo = false },
-            onDismiss = { editTempo = false },
-        )
-    }
-}
-
-@Composable
-private fun TempoDialog(initial: TempoEdit, onSave: (TempoEdit) -> Unit, onDismiss: () -> Unit) {
-    var tempo by remember { mutableStateOf<TempoEdit?>(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Tempo & Taktart") },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { TempoEditor(tempo, onChange = { tempo = it ?: initial }) } },
-        confirmButton = {
-            TextButton(onClick = { tempo?.let(onSave) }, enabled = tempo != null) { Text("Speichern") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
-    )
-}
-
-@Composable
-private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: () -> Unit) {
-    val settings = vm.settings
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Metronom") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Lautstärke")
-                Slider(
-                    value = settings.clickVolume,
-                    onValueChange = { v -> vm.updateSettings { it.copy(clickVolume = v) } },
-                    valueRange = 0f..1f,
-                )
-                Dropdown(
-                    label = "Unterteilung",
-                    options = listOf(1 to "Nur Schläge", 2 to "Achtel", 3 to "Triolen", 4 to "Sechzehntel"),
-                    selected = settings.subdivision,
-                    onSelect = { v -> vm.updateMetronomeSettings(song) { it.copy(subdivision = v) } },
-                )
-                Dropdown(
-                    label = "Vorzähler",
-                    options = listOf(0 to "Keiner", 1 to "1 Takt", 2 to "2 Takte"),
-                    selected = settings.countInBars,
-                    onSelect = { v -> vm.updateMetronomeSettings(song) { it.copy(countInBars = v) } },
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },
-    )
 }
 
 /** Label above a button that opens a list of choices. */

@@ -65,6 +65,9 @@ import at.zentriert.setlist.edit.LoopBars
 import at.zentriert.setlist.edit.NoteValue
 import at.zentriert.setlist.ui.Amber
 import at.zentriert.setlist.ui.InstrumentDropdown
+import at.zentriert.setlist.ui.transport.TransportBar
+import at.zentriert.setlist.ui.transport.TransportOptions
+import at.zentriert.setlist.ui.transport.editorStartTick
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -122,7 +125,10 @@ fun EditorScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score
 
             RollEditor(vm, score, instrument, mode, beatDp, Modifier.weight(1f).fillMaxWidth())
 
-            TransportRow(vm, score, instrument, onLoop = { showLoop = true })
+            TransportBar(
+                vm, song, score,
+                TransportOptions(setlistId = setlistId, recordInstrument = instrument, onLoop = { showLoop = true }, showStepInput = true, startTick = { editorStartTick(vm, score) }),
+            )
 
             InputPanel(vm, score, instrument, assignPads, Modifier.height(if (instrument == Instrument.DRUMS) 120.dp else 150.dp).background(Color(0xFF1A1A1A)).navigationBarsPadding())
         }
@@ -130,33 +136,6 @@ fun EditorScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score
 
     if (showSettings) EditorSettingsDialog(vm, onDismiss = { showSettings = false })
     if (showLoop) LoopDialog(vm, score, onDismiss = { showLoop = false })
-}
-
-@Composable
-private fun TransportRow(vm: MainViewModel, score: Score, instrument: Instrument, onLoop: () -> Unit) {
-    val barTicks = score.ppq * 4L / score.meter.denominator * score.meter.numerator
-    val startTick = vm.loop?.ticks(score)?.first ?: (vm.cursorTick / barTicks * barTicks)
-    val position = vm.playbackTick?.let { ScorePlayback.barBeat(score, it).let { (b, k) -> "Takt $b · $k" } }
-        ?: if (vm.playing) "Vorzähler …" else "Takt ${ScorePlayback.barBeat(score, startTick).first}"
-
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Button(
-            onClick = { if (vm.recording) vm.stopRecording(score) else vm.startRecording(score, instrument, startTick) },
-            colors = ButtonDefaults.buttonColors(containerColor = if (vm.recording) Color(0xFFD32F2F) else Color(0xFF3A3A3A), contentColor = Color.White),
-            enabled = vm.soundFontReady,
-        ) {
-            Icon(if (vm.recording) Icons.Default.Stop else Icons.Default.FiberManualRecord, null, tint = if (vm.recording) Color.White else Color(0xFFFF5252))
-            Spacer(Modifier.width(4.dp)); Text(if (vm.recording) "Fertig" else "Aufnahme")
-        }
-        Button(
-            onClick = { if (vm.playing && !vm.recording) vm.stopPlayback() else if (!vm.playing) vm.playScore(score, startTick, withMetronome = true, loop = vm.loop) },
-            enabled = vm.soundFontReady && !vm.recording,
-            colors = ButtonDefaults.buttonColors(containerColor = if (vm.playing) Amber else Color(0xFF3A3A3A), contentColor = if (vm.playing) Color.Black else Color.White),
-        ) { Icon(if (vm.playing) Icons.Default.Stop else Icons.Default.PlayArrow, null) }
-        Text(position, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, maxLines = 1)
-        FilterChip(selected = vm.loop != null, onClick = onLoop, label = { Text(vm.loop?.let { "Loop ${it.from}–${it.to}" } ?: "Loop") })
-        FilterChip(selected = vm.stepInput, onClick = { vm.stepInput = !vm.stepInput }, label = { Text("Schritt") })
-    }
 }
 
 @Composable

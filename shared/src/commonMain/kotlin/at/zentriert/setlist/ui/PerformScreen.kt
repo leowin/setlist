@@ -63,14 +63,14 @@ import at.zentriert.setlist.Score
 import at.zentriert.setlist.Setlist
 import at.zentriert.setlist.Song
 import at.zentriert.setlist.StageEffects
-import at.zentriert.setlist.NotationView
-import at.zentriert.setlist.notation.AlphaTex
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.DarkMode
 import at.zentriert.setlist.audio.MetronomePosition
 import at.zentriert.setlist.ui.metronome.BeatBackground
-import at.zentriert.setlist.ui.metronome.MetronomeBar
+import at.zentriert.setlist.ui.notation.NotationPane
+import at.zentriert.setlist.ui.transport.TransportBar
+import at.zentriert.setlist.ui.transport.TransportOptions
 
 private val NotesColor = Color(0xFFE6E6E6)
 private val DimColor = Color(0xFF9E9E9E)
@@ -149,7 +149,7 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                     }
                 }
             }
-            MetronomeBar(vm, setlist, songs.getOrNull(index))
+            TransportBar(vm, songs.getOrNull(index), vm.score(songs.getOrNull(index)), TransportOptions(setlistId = setlist.id))
             Row(
                 Modifier.fillMaxWidth().height(104.dp).padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -253,32 +253,10 @@ private fun TopStrip(
     }
 }
 
-/** Sheet music of my instrument (or the first part) in the concert view, title on top. */
+/** Sheet music in the concert view: the shared pane, size and light/dark come from the top strip. */
 @Composable
 private fun PerformNotation(vm: MainViewModel, song: Song, score: Score, fontSize: Float, showTitle: Boolean) {
-    val settings = vm.settings
-    val instrument = settings.myInstrument?.takeIf { inst -> score.parts.any { it.instrument == inst && it.notes.isNotEmpty() } }
-        ?: score.parts.first { it.notes.isNotEmpty() }.instrument
-    val view = AlphaTex.View.entries.getOrElse(settings.notationView) { AlphaTex.View.BOTH }
-    val tex = remember(score, instrument, view) { AlphaTex.render(score, song.title, listOf(instrument), view) }
-    Column(Modifier.fillMaxSize()) {
-        if (showTitle) Text(
-            song.title,
-            color = Color.White,
-            fontSize = (fontSize * 1.1f).sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        NotationView(
-            tex,
-            vm.notationCursor(score) ?: (vm.startTick * 960 / score.ppq).takeIf { !vm.playing },
-            settings.notationScale, settings.notationLight,
-            onTap = { tick -> vm.jumpTo(score, tick * score.ppq / 960) },
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-        )
-    }
+    NotationPane(vm, song, score, Modifier.fillMaxSize(), showTools = false, title = if (showTitle) song.title else null, titleSize = fontSize * 1.1f)
 }
 
 @Composable

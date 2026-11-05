@@ -61,12 +61,13 @@ import at.zentriert.setlist.Song
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.rememberFilePicker
 import at.zentriert.setlist.ui.InstrumentDropdown
+import at.zentriert.setlist.ui.transport.TransportBar
+import at.zentriert.setlist.ui.transport.TransportOptions
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?) {
     val pickFile = rememberFilePicker { bytes, name -> vm.startMidiImport(bytes, name, ImportTarget(setlistId, song.id)) }
-    var withMetronome by remember { mutableStateOf(true) }
 
     BackHandler { vm.closeNotes(setlistId) }
 
@@ -87,7 +88,7 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
         },
         bottomBar = {
             if (score != null && score.parts.isNotEmpty()) {
-                TransportBar(vm, score, withMetronome, onMetronomeChange = { withMetronome = it })
+                TransportBar(vm, song, score, TransportOptions(setlistId = setlistId, metronomeToggle = true, navigationPadding = true))
             }
         },
     ) { padding ->
@@ -194,33 +195,5 @@ private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, na
             }
             Slider(value = gain, onValueChange = { vm.setPartGain(score, instrument, it) }, valueRange = 0f..1f)
         }
-    }
-}
-
-@Composable
-private fun TransportBar(vm: MainViewModel, score: Score, withMetronome: Boolean, onMetronomeChange: (Boolean) -> Unit) {
-    val tick = vm.playbackTick
-    val position = when {
-        !vm.playing -> "Takt 1"
-        tick == null -> "Vorzähler …"
-        else -> ScorePlayback.barBeat(score, tick).let { (bar, beat) -> "Takt $bar · $beat" }
-    }
-    Row(
-        Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp).height(56.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Button(
-            onClick = { if (vm.playing) vm.stopPlayback() else vm.playFromCursor(score, withMetronome = withMetronome) },
-            enabled = vm.soundFontReady,
-            modifier = Modifier.height(56.dp),
-        ) {
-            Icon(if (vm.playing) Icons.Default.Stop else Icons.Default.PlayArrow, null)
-            Spacer(Modifier.width(6.dp))
-            Text(if (vm.playing) "Stop" else "Abspielen", fontSize = 18.sp)
-        }
-        Text(position, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        Text("Klick", style = MaterialTheme.typography.labelMedium)
-        Switch(checked = withMetronome, onCheckedChange = onMetronomeChange)
     }
 }
