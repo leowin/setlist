@@ -39,6 +39,9 @@ data class PerformSettings(
     val micOffsetMs: Int = 0,
     val practiceWindowMs: Int = 120,
     val practiceGrid: Int = 0,
+    /** Level meter: automatic or a fixed gain in dB. */
+    val micAutoGain: Boolean = true,
+    val micGainDb: Int = 0,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -48,7 +51,7 @@ data class PerformSettings(
     }
 }
 
-enum class MixMode(val label: String) { ALL("Alle"), ONLY_ME("Nur ich"), WITHOUT_ME("Alle außer mir") }
+enum class MixMode(val label: String) { ALL("Alle"), ONLY_ME("Nur ich"), WITHOUT_ME("Alle außer mir"), NONE("Nichts") }
 
 class SettingsStore(private val store: KeyValueStore) {
     fun load() = PerformSettings(
@@ -79,6 +82,8 @@ class SettingsStore(private val store: KeyValueStore) {
         micOffsetMs = store.getInt("micOffsetMs", 0),
         practiceWindowMs = store.getInt("practiceWindowMs", 120),
         practiceGrid = store.getInt("practiceGrid", 0),
+        micAutoGain = store.getBoolean("micAutoGain", true),
+        micGainDb = store.getInt("micGainDb", 0),
     )
 
     fun save(s: PerformSettings) {
@@ -109,5 +114,7 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putInt("micOffsetMs", s.micOffsetMs)
         store.putInt("practiceWindowMs", s.practiceWindowMs)
         store.putInt("practiceGrid", s.practiceGrid)
+        store.putBoolean("micAutoGain", s.micAutoGain)
+        store.putInt("micGainDb", s.micGainDb)
     }
 }

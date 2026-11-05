@@ -56,6 +56,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.Job
+import kotlin.math.pow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
@@ -618,6 +619,7 @@ class MainViewModel(
             MixMode.ALL -> base
             MixMode.ONLY_ME -> if (instrument == me) base else 0f
             MixMode.WITHOUT_ME -> if (instrument == me) 0f else base
+            MixMode.NONE -> 0f
         }
     }
 
@@ -1173,6 +1175,11 @@ class MainViewModel(
         private set
     var loopbackMeasuring by mutableStateOf(false)
         private set
+    /** Microphone level for the meter (dBFS, after the meter gain), refreshed while listening. */
+    var micLevelDb by mutableStateOf(-120f)
+        private set
+    var micGainApplied by mutableStateOf(1f)
+        private set
     private var hitPoller: Job? = null
     private var take: Take? = null
     private var loopbackHits = ArrayList<Double>()
@@ -1213,8 +1220,14 @@ class MainViewModel(
         calibration.samples.forEach { (cls, list) -> list.forEach { audio.addCalibrationSample(cls, it.toFloatArray()) } }
         listening = true
         hitPoller?.cancel()
+        applyMicGain()
         hitPoller = viewModelScope.launch {
-            while (isActive) { audio.pollHits().forEach(::onHit); delay(20) }
+            var n = 0
+            while (isActive) {
+                audio.pollHits().forEach(::onHit)
+                if (++n % 4 == 0) { micLevelDb = audio.inputLevelDb(); micGainApplied = audio.inputGain() }
+                delay(20)
+            }
         }
         return true
     }
@@ -1225,9 +1238,14 @@ class MainViewModel(
         listening = false
         calibratingPad = null
         loopbackMeasuring = false
+        micLevelDb = -120f
     }
 
     fun toggleListening(): Boolean = if (listening) { stopListening(); true } else startListening()
+
+    fun applyMicGain() {
+        audio.setInputGain(10f.pow(settings.micGainDb / 20f), settings.micAutoGain)
+    }
 
     /** Called by playScore/startMetronome: a new take starts whenever something plays while listening. */
     private fun openTake(song: Song?, score: Score, fromTick: Long, withNotes: Boolean) {
@@ -1249,7 +1267,7 @@ class MainViewModel(
                 loopbackHits += dev + settings.micOffsetMs   // raw delay, independent of the current setting
                 return
             }
-            if (hit.voices == 0) {
+            if (hit.voices == 0 && learningNote != null) {
                 // A reference note was learned: keep the instrument's partial profile.
                 calibration = calibration.withProfile(calibrationInstrument.name, audio.harmonicProfile(), hit.cls)
                 practiceStore.saveCalibration(calibration)
@@ -1386,9 +1404,11 @@ class MainViewModel(
     }
 
     fun updateSettings(transform: (PerformSettings) -> PerformSettings) {
+        val before = settings
         settings = transform(settings)
         settingsStore.save(settings)
         audio.setClickVolume(settings.clickVolume)
+        if (before.micGainDb != settings.micGainDb || before.micAutoGain != settings.micAutoGain) applyMicGain()
         repo.author = settings.myName.ifBlank { settings.deviceId.take(8) }
     }
 

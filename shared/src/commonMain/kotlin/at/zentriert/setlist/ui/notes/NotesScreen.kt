@@ -61,6 +61,7 @@ import at.zentriert.setlist.Song
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.rememberFilePicker
 import at.zentriert.setlist.ui.InstrumentDropdown
+import at.zentriert.setlist.ui.metronome.Dropdown
 import at.zentriert.setlist.ui.transport.TransportBar
 import at.zentriert.setlist.ui.transport.TransportOptions
 
@@ -150,17 +151,12 @@ private fun MixPresets(vm: MainViewModel, score: Score) {
             Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
             InstrumentDropdown(selected = settings.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(score, it) })
         }
-        Text("Ich höre", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MixMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = settings.mixMode == mode,
-                    onClick = { vm.setMixMode(score, mode) },
-                    label = { Text(mode.label) },
-                    enabled = mode == MixMode.ALL || settings.myInstrument != null,
-                )
-            }
-        }
+        Dropdown(
+            label = "Ich höre",
+            options = MixMode.entries.filter { it == MixMode.ALL || it == MixMode.NONE || settings.myInstrument != null }.map { it to it.label },
+            selected = settings.mixMode,
+            onSelect = { vm.setMixMode(score, it) },
+        )
     }
 }
 

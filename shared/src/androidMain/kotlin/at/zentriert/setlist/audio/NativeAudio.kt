@@ -39,6 +39,9 @@ internal object NativeAudio {
     external fun inputLatencyNanos(handle: Long): Long
     external fun pollHits(handle: Long, frames: LongArray, classes: IntArray, confidences: FloatArray, levels: FloatArray, features: FloatArray, extra: FloatArray): Int
     external fun setListenMode(handle: Long, mode: Int)
+    external fun setInputGain(handle: Long, gain: Float, automatic: Boolean)
+    external fun inputLevelDb(handle: Long): Float
+    external fun inputGain(handle: Long): Float
     external fun learnProfile(handle: Long, midi: Int)
     external fun setHarmonicProfile(handle: Long, profile: FloatArray)
     external fun harmonicProfile(handle: Long): FloatArray

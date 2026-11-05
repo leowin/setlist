@@ -35,7 +35,7 @@ void Listener::setSampleRate(int sampleRate) {
     clickBin_.assign(kWindow / 2 + 1, false);
     for (double f : clicks) {
         int centre = int(f / (double(sampleRate) / kWindow) + 0.5);
-        for (int k = std::max(0, centre - 6); k <= std::min(kWindow / 2, centre + 6); ++k) clickBin_[k] = true;
+        for (int k = std::max(0, centre - 10); k <= std::min(kWindow / 2, centre + 10); ++k) clickBin_[k] = true;
     }
     // 16 bands, geometrically spaced 60 Hz … 12 kHz, as FFT bin edges.
     bandLo_.resize(16); bandHi_.resize(16);
@@ -67,6 +67,13 @@ void Listener::process(const float* in, int frames, int64_t firstFrame) {
     int64_t expected = ringOrigin_ + written_;
     if (written_ == 0 || std::llabs(expected - firstFrame) > kHop) ringOrigin_ = firstFrame - written_;
     const bool suppress = suppressClick_.load();
+    // The analysis itself is level independent (adaptive floors, relative features), so the gain only
+    // scales the level meter: manually, or automatically so that the recent peak reads about -6 dBFS.
+    float rawMax = 0;
+    for (int i = 0; i < frames; ++i) rawMax = std::max(rawMax, std::fabs(in[i]));
+    rawPeak_ = std::max(rawMax, rawPeak_ * std::pow(0.5f, float(frames) / (2.0f * sampleRate_)));   // half-life 2 s
+    if (autoGain_.load()) autoGainValue_.store(std::clamp(0.5f / std::max(rawPeak_, 1e-4f), 1.0f, 64.0f));
+    const float outMax = std::min(1.0f, rawMax * inputGain());
     for (int i = 0; i < frames; ++i) {
         float x = in[i];
         rawRing_[size_t((written_ + i) % kRing)] = x;
@@ -74,6 +81,8 @@ void Listener::process(const float* in, int frames, int64_t firstFrame) {
         ring_[size_t((written_ + i) % kRing)] = x;
     }
     written_ += frames;
+    peakHold_ = std::max(outMax, peakHold_ * std::pow(0.5f, float(frames) / (0.3f * sampleRate_)));   // meter: 300 ms half-life
+    levelDb_.store(peakHold_ > 1e-6f ? 20.0f * std::log10(peakHold_) : -120.0f);
     while (written_ >= nextHop_ + kWindow) analyseHop();
     if (mode() == ListenMode::Mono) while (written_ >= nextPitch_ + PitchTracker::kFrame) trackPitch();
     // Features need some sound after the onset; finish hits once it has arrived.
@@ -89,7 +98,11 @@ void Listener::analyseHop() {
     // Flux is measured on the raw signal so a click shows up as a narrow-band rise and can be told apart.
     for (int i = 0; i < kWindow; ++i) frame_[i] = rawAt(start + i) * window_[i];
     fft_.magnitudes(frame_.data(), mag_.data());
-    const float floor = 1e-3f * kWindow / 4;
+    // Quiet bins are ignored. The floor follows the signal (twice the median bin of the previous frame), so a
+    // quiet phone microphone works like a loud one and background noise alone produces no flux.
+    std::vector<float> med(prevMag_.begin() + 1, prevMag_.begin() + kWindow / 2);
+    std::nth_element(med.begin(), med.begin() + med.size() / 2, med.end());
+    const float floor = std::max(1e-5f * kWindow / 4, 2.0f * med[med.size() / 2]);
     float fluxTotal = 0, fluxClick = 0;
     for (int k = 1; k < kWindow / 2; ++k) {
         float a = std::log(std::max(mag_[k], floor)), b = std::log(std::max(prevMag_[k], floor));
@@ -98,8 +111,10 @@ void Listener::analyseHop() {
     std::swap(mag_, prevMag_);
     const bool suppress = suppressClick_.load();
     float flux = suppress ? fluxTotal - fluxClick : fluxTotal;
-    bool clickLike = suppress && fluxTotal > 0 && fluxClick / fluxTotal > 0.45f;
-    if (clickLike) flux = 0;   // a rise that is mostly click: not a candidate, and no threshold inflation
+    bool clickLike = suppress && fluxTotal > 0 && fluxClick / fluxTotal > 0.35f;
+    // A rise that is mostly click is no candidate (and doesn't inflate the threshold). The hop before it,
+    // where the click's edge entered the window as broadband splatter, is withdrawn as well.
+    if (clickLike) { flux = 0; lastFlux_[1] = 0; }
 
     // Peak picking on the previous hop: a local maximum above the adaptive threshold.
     std::vector<float> sorted(fluxHistory_);
@@ -142,7 +157,7 @@ void Listener::analyseHop() {
         }
         if (onset >= 0 && (lastOnset_ < 0 || onset - lastOnset_ >= sampleRate_ * 50 / 1000)) {
 #ifdef LISTENER_DEBUG
-            std::fprintf(stderr, "onset %lld flux %.2f thr %.2f peakE %.4g base %.4g\n", (long long)onset, candidate, threshold, peakE, baseline);
+            std::fprintf(stderr, "onset %lld flux %.2f thr %.2f peakE %.4g base %.4g share %.2f total %.2f\n", (long long)onset, candidate, threshold, peakE, baseline, fluxTotal > 0 ? fluxClick / fluxTotal : 0.0f, fluxTotal);
 #endif
             lastOnset_ = onset;
             onOnset(onset);
@@ -285,6 +300,7 @@ void Listener::finish(const Pending& p) {
     e.level = float(10.0 * std::log10(e1 / kWindow + 1e-12));
     e.features[19] = e.level;
     e.cls = classifier_.classify(e.features, e.confidence);
+    e.voices = 1;
     push(e);
 }
 

@@ -37,6 +37,9 @@ import at.zentriert.setlist.native.sl_sequence_start_frame
 import at.zentriert.setlist.native.sl_beat_zero_frame
 import at.zentriert.setlist.native.sl_beat_frames
 import at.zentriert.setlist.native.sl_set_listen_mode
+import at.zentriert.setlist.native.sl_set_input_gain
+import at.zentriert.setlist.native.sl_input_level_db
+import at.zentriert.setlist.native.sl_input_gain
 import at.zentriert.setlist.native.sl_learn_profile
 import at.zentriert.setlist.native.sl_set_harmonic_profile
 import at.zentriert.setlist.native.sl_harmonic_profile
@@ -112,6 +115,9 @@ class IosAudioEngine : AudioEngine {
         return List(n) { i -> DetectedHit(frames[i], classes[i], conf[i], levels[i], features.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES), extra[i * 2], extra[i * 2 + 1].toInt()) }
     }
     override fun setListenMode(mode: ListenMode) = sl_set_listen_mode(handle, mode.ordinal)
+    override fun setInputGain(gain: Float, automatic: Boolean) = sl_set_input_gain(handle, gain, if (automatic) 1 else 0)
+    override fun inputLevelDb(): Float = sl_input_level_db(handle)
+    override fun inputGain(): Float = sl_input_gain(handle)
     override fun learnProfile(midi: Int) = sl_learn_profile(handle, midi)
     override fun setHarmonicProfile(profile: FloatArray) { if (profile.isNotEmpty()) profile.usePinned { sl_set_harmonic_profile(handle, it.addressOf(0), profile.size) } }
     override fun harmonicProfile(): FloatArray { val out = FloatArray(8); val n = out.usePinned { sl_harmonic_profile(handle, it.addressOf(0), 8) }; return out.copyOf(n) }

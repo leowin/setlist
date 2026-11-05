@@ -70,7 +70,9 @@ int main() {
         }
         addHit(buf, SR / 4 + SR + 3400, 1, 0.5f, rng);   // 71 ms after the third click
         auto hits = run(l, buf);
-        std::printf("with click suppression: %zu hit(s)\n", hits.size());
+        std::printf("with click suppression: %zu hit(s):", hits.size());
+        for (auto& h : hits) std::printf(" %lld", (long long)h.frame);
+        std::printf("\n");
         CHECK(hits.size() == 1);
         if (!hits.empty()) CHECK(std::fabs((hits[0].frame - (SR / 4 + SR + 3400)) * 1000.0 / SR) <= 3.0);
         // Without suppression the clicks are onsets too (that is what the loopback calibration uses).

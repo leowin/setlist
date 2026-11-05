@@ -202,6 +202,21 @@ Java_at_zentriert_setlist_audio_NativeAudio_pollHits(JNIEnv* env, jobject, jlong
 }
 
 JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setInputGain(JNIEnv*, jobject, jlong h, jfloat gain, jboolean automatic) {
+    engine(h)->engine.listener.setInputGain(gain, automatic == JNI_TRUE);
+}
+
+JNIEXPORT jfloat JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_inputLevelDb(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.listener.inputLevelDb();
+}
+
+JNIEXPORT jfloat JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_inputGain(JNIEnv*, jobject, jlong h) {
+    return engine(h)->engine.listener.inputGain();
+}
+
+JNIEXPORT void JNICALL
 Java_at_zentriert_setlist_audio_NativeAudio_setListenMode(JNIEnv*, jobject, jlong h, jint mode) {
     engine(h)->engine.listener.setMode(setlist::ListenMode(mode));
 }

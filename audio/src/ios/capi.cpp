@@ -56,6 +56,9 @@ int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confide
     }
     return n;
 }
+void sl_set_input_gain(sl_engine* e, float gain, int automatic) { E(e)->engine.listener.setInputGain(gain, automatic != 0); }
+float sl_input_level_db(sl_engine* e) { return E(e)->engine.listener.inputLevelDb(); }
+float sl_input_gain(sl_engine* e) { return E(e)->engine.listener.inputGain(); }
 void sl_set_listen_mode(sl_engine* e, int mode) { E(e)->engine.listener.setMode(setlist::ListenMode(mode)); }
 void sl_learn_profile(sl_engine* e, int midi) { E(e)->engine.listener.learnProfile(midi); }
 void sl_set_harmonic_profile(sl_engine* e, const float* profile, int count) { E(e)->engine.listener.setProfile(std::vector<float>(profile, profile + count)); }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +15,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
@@ -25,12 +28,15 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -233,14 +239,34 @@ private fun TempoDialog(initial: TempoEdit, onSave: (TempoEdit) -> Unit, onDismi
     )
 }
 
+/** Horizontal level bar: green up to -12 dB, amber to -3 dB, red above. */
+@Composable
+private fun LevelMeter(levelDb: Float, active: Boolean) {
+    val fraction = if (!active) 0f else ((levelDb + 60f) / 60f).coerceIn(0f, 1f)
+    Box(Modifier.fillMaxWidth().height(14.dp).background(Color(0xFF2A2A2A), MaterialTheme.shapes.small)) {
+        Box(
+            Modifier.fillMaxWidth(fraction).fillMaxHeight()
+                .background(if (levelDb > -3f) Color(0xFFEF5350) else if (levelDb > -12f) Amber else Color(0xFF66BB6A), MaterialTheme.shapes.small),
+        )
+    }
+}
+
+/** ⚙ of the transport bar: one dialog, two pages chosen by the icon row on top – metronome and listening. */
 @Composable
 private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: () -> Unit) {
     val settings = vm.settings
+    var tab by remember { mutableStateOf(0) }
+    val requestMicFromDialog = rememberMicrophonePermission { granted -> if (granted) vm.startListening() else vm.micError = "Ohne Mikrofon-Berechtigung kann die App nicht zuhören." }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Metronom") },
+        title = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("Metronom") }, leadingIcon = { Icon(Icons.Default.Timer, null) }, colors = chipColors())
+                FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("Zuhören") }, leadingIcon = { Icon(Icons.Default.Hearing, null) }, colors = chipColors())
+            }
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (tab == 0) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Lautstärke")
                 Slider(
                     value = settings.clickVolume,
@@ -259,8 +285,47 @@ private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: (
                     selected = settings.countInBars,
                     onSelect = { v -> vm.updateMetronomeSettings(song) { it.copy(countInBars = v) } },
                 )
-                TextButton(onClick = { onDismiss(); vm.openCalibration(song?.id) }) { Text("Zuhören: Mikrofon & Trommeln justieren …") }
-                vm.micError?.let { Text(it, color = Color(0xFFEF5350)) }
+            } else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Level meter: is the microphone hearing anything, and how loud?
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Pegel", fontWeight = FontWeight.Bold)
+                    if (!vm.listening) TextButton(onClick = { requestMicFromDialog() }) { Text("Mikrofon ein") }
+                }
+                LevelMeter(vm.micLevelDb, vm.listening)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Automatisch", Modifier.weight(1f))
+                    Switch(checked = settings.micAutoGain, onCheckedChange = { v -> vm.updateSettings { it.copy(micAutoGain = v) } })
+                }
+                if (settings.micAutoGain) Text("Verstärkung ×${(vm.micGainApplied * 10).toInt() / 10f}", fontSize = 12.sp, color = DimColor)
+                else {
+                    Text("Verstärkung ${settings.micGainDb} dB", fontSize = 12.sp, color = DimColor)
+                    Slider(value = settings.micGainDb.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(micGainDb = v.toInt()) } }, valueRange = 0f..36f)
+                }
+                Text(
+                    "Android lässt die Mikrofon-Empfindlichkeit nicht ändern; die Verstärkung gilt für die Anzeige. Die Erkennung passt sich dem Pegel selbst an – " +
+                        "wichtig ist nur, dass der Balken bei Schlägen ausschlägt und nicht dauernd im Rot steht (Übersteuerung).",
+                    fontSize = 12.sp, color = DimColor,
+                )
+                Text("Mikrofon-Verzögerung: ${settings.micOffsetMs} ms" + (vm.calibration.micOffsetMeasuredMs?.let { " (gemessen $it)" } ?: ""), fontWeight = FontWeight.Bold)
+                Slider(value = settings.micOffsetMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(micOffsetMs = v.toInt()) } }, valueRange = -150f..300f)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = vm::startLoopbackMeasure, enabled = !vm.loopbackMeasuring) { Text("Automatisch messen") }
+                    if (vm.loopbackMeasuring) { CircularProgressIndicator(Modifier.width(20.dp).height(20.dp), strokeWidth = 2.dp); Text("hört die Klicks … (9 s)", fontSize = 12.sp) }
+                }
+                Text(
+                    "Spielt neun Klicks über den Lautsprecher und misst, wie spät das Mikrofon sie hört (Handy frei hinlegen, laut).",
+                    fontSize = 12.sp, color = DimColor,
+                )
+                vm.micError?.let { Text(it, color = Color(0xFFEF5350), fontSize = 12.sp) }
+                Text("Toleranzfenster ±${settings.practiceWindowMs} ms")
+                Slider(value = settings.practiceWindowMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(practiceWindowMs = v.toInt()) } }, valueRange = 40f..250f)
+                Dropdown(
+                    label = "Raster ohne Noten",
+                    options = listOf(0 to "Wie Metronom", 1 to "Viertel", 2 to "Achtel", 3 to "Triolen", 4 to "16tel"),
+                    selected = settings.practiceGrid,
+                    onSelect = { v -> vm.updateSettings { it.copy(practiceGrid = v) } },
+                )
+                TextButton(onClick = { onDismiss(); vm.openCalibration(song?.id) }) { Text("Instrument justieren (Trommeln / Töne beibringen) …") }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },

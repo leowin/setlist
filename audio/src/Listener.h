@@ -51,6 +51,12 @@ public:
 
     // Sensitivity: flux must exceed median × factor + floor.
     void setSensitivity(float factor, float floor) { thresholdFactor_ = factor; thresholdFloor_ = floor; }
+    // Gain of the level meter (linear) or automatic (recent peak shown at about -6 dBFS); the hit detection
+    // itself adapts to the level and is not affected.
+    void setInputGain(float gain, bool automatic) { inputGain_.store(gain); autoGain_.store(automatic); }
+    float inputGain() const { return autoGain_.load() ? autoGainValue_.load() : inputGain_.load(); }
+    // Recent peak level after gain, in dBFS (-120 when silent), for a level meter.
+    float inputLevelDb() const { return levelDb_.load(); }
 
 private:
     struct Biquad {
@@ -73,6 +79,9 @@ private:
 
     std::atomic<bool> enabled_{false}, suppressClick_{false};
     std::atomic<int> mode_{0};
+    std::atomic<float> inputGain_{1.0f}, autoGainValue_{1.0f}, levelDb_{-120.0f};
+    std::atomic<bool> autoGain_{true};
+    float rawPeak_ = 0.0f, peakHold_ = 0.0f;
     std::atomic<int> learnMidi_{-1};
     int learnedCount_ = 0;
     std::vector<float> learnedProfile_;

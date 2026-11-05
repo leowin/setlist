@@ -59,6 +59,11 @@ interface AudioEngine {
     fun setClickSuppression(on: Boolean)
     fun pollHits(): List<DetectedHit>
     fun setListenMode(mode: ListenMode)
+    /** Level meter gain (linear) or automatic; the detection itself adapts to the level anyway. */
+    fun setInputGain(gain: Float, automatic: Boolean)
+    /** Recent microphone peak in dBFS after the meter gain; -120 when silent. */
+    fun inputLevelDb(): Float
+    fun inputGain(): Float
     /** Calibration of a melodic instrument: the next note heard is `midi`, its partials refine the profile. */
     fun learnProfile(midi: Int)
     fun setHarmonicProfile(profile: FloatArray)
@@ -127,6 +132,9 @@ class SilentAudioEngine : AudioEngine {
     override fun setClickSuppression(on: Boolean) {}
     override fun pollHits(): List<DetectedHit> = emptyList()
     override fun setListenMode(mode: ListenMode) {}
+    override fun setInputGain(gain: Float, automatic: Boolean) {}
+    override fun inputLevelDb() = -120f
+    override fun inputGain() = 1f
     override fun learnProfile(midi: Int) {}
     override fun setHarmonicProfile(profile: FloatArray) {}
     override fun harmonicProfile(): FloatArray = FloatArray(0)

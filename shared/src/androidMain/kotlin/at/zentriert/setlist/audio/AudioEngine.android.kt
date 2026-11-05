@@ -85,6 +85,9 @@ class AndroidAudioEngine : AudioEngine {
         return List(n) { i -> DetectedHit(hitFrames[i], hitClasses[i], hitConf[i], hitLevels[i], hitFeatures.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES), hitExtra[i * 2], hitExtra[i * 2 + 1].toInt()) }
     }
     override fun setListenMode(mode: ListenMode) = NativeAudio.setListenMode(handle, mode.ordinal)
+    override fun setInputGain(gain: Float, automatic: Boolean) = NativeAudio.setInputGain(handle, gain, automatic)
+    override fun inputLevelDb(): Float = NativeAudio.inputLevelDb(handle)
+    override fun inputGain(): Float = NativeAudio.inputGain(handle)
     override fun learnProfile(midi: Int) = NativeAudio.learnProfile(handle, midi)
     override fun setHarmonicProfile(profile: FloatArray) = NativeAudio.setHarmonicProfile(handle, profile)
     override fun harmonicProfile(): FloatArray = NativeAudio.harmonicProfile(handle)

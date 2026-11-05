@@ -42,6 +42,7 @@ import at.zentriert.setlist.Instrument
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.Score
 import at.zentriert.setlist.ui.InstrumentDropdown
+import at.zentriert.setlist.ui.metronome.Dropdown
 import at.zentriert.setlist.edit.DrumNames
 import at.zentriert.setlist.rememberMicrophonePermission
 import at.zentriert.setlist.ui.Amber
@@ -70,46 +71,16 @@ fun CalibrationScreen(vm: MainViewModel, songId: String?) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Zuhören justieren") },
+                title = { Text("Instrument justieren") },
                 navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück") } },
             )
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Mikrofon-Verzögerung", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Zwischen Schlag und Mikrofon liegen Schallweg und Verarbeitung. „Automatisch messen“ spielt neun Klicks über den " +
-                                "Lautsprecher und misst, wie spät das Mikrofon sie hört (Handy frei hinlegen, Lautstärke hoch). Der Regler korrigiert fein.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text("${settings.micOffsetMs} ms" + (vm.calibration.micOffsetMeasuredMs?.let { " (gemessen $it ms)" } ?: ""), fontWeight = FontWeight.Bold)
-                        Slider(value = settings.micOffsetMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(micOffsetMs = v.toInt()) } }, valueRange = -150f..300f)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = vm::startLoopbackMeasure, enabled = !vm.loopbackMeasuring) { Text("Automatisch messen") }
-                            if (vm.loopbackMeasuring) { CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp); Text("hört die Klicks … (9 s)") }
-                        }
-                        vm.micError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        if (!vm.listening) TextButton(onClick = requestMic) { Text("Mikrofon einschalten") }
-                    }
-                }
-            }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Bewertung", style = MaterialTheme.typography.titleMedium)
-                        Text("Toleranzfenster ±${settings.practiceWindowMs} ms", style = MaterialTheme.typography.bodyMedium)
-                        Slider(value = settings.practiceWindowMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(practiceWindowMs = v.toInt()) } }, valueRange = 40f..250f)
-                        Text("Raster ohne Noten", style = MaterialTheme.typography.bodyMedium)
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf(0 to "Wie Metronom", 1 to "Viertel", 2 to "Achtel", 3 to "Triolen", 4 to "16tel").forEach { (v, label) ->
-                                FilterChip(selected = settings.practiceGrid == v, onClick = { vm.updateSettings { it.copy(practiceGrid = v) } }, label = { Text(label) })
-                            }
-                        }
-                    }
-                }
+                vm.micError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (!vm.listening) TextButton(onClick = requestMic) { Text("Mikrofon einschalten") }
+                Text("Mikrofon-Verzögerung und Toleranz stellst du unter ⚙ → Zuhören ein.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
