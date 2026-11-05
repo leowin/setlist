@@ -44,7 +44,7 @@ data class PerformSettings(
         const val MIN_FONT = 18f
         const val MAX_FONT = 96f
         /** Set after the first deployment (see server/README.md); empty disables the cloud features. */
-        const val DEFAULT_SERVER = ""
+        const val DEFAULT_SERVER = "https://setlist-server-814326728745.europe-west1.run.app"
     }
 }
 

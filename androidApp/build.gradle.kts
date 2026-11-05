@@ -22,7 +22,7 @@ android {
         // Host of the band server, so https://<host>/join and /s/… open in the app (see server/README.md).
         // Set as Gradle property setlistAppLinkHost (CI: variable SETLIST_APP_LINK_HOST) or in local.properties.
         manifestPlaceholders["appLinkHost"] = (project.findProperty("setlistAppLinkHost") as String?)?.takeIf { it.isNotBlank() }
-            ?: localProperty("setlistAppLinkHost") ?: "setlist.invalid"
+            ?: localProperty("setlistAppLinkHost") ?: "setlist-server-814326728745.europe-west1.run.app"
     }
 
     // Release signing: the keystore comes from the environment (CI secrets or a local shell), see README.
