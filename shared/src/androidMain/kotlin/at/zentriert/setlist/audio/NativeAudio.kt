@@ -37,7 +37,11 @@ internal object NativeAudio {
     external fun setListening(handle: Long, on: Boolean): Boolean
     external fun setClickSuppression(handle: Long, on: Boolean)
     external fun inputLatencyNanos(handle: Long): Long
-    external fun pollHits(handle: Long, frames: LongArray, classes: IntArray, confidences: FloatArray, levels: FloatArray, features: FloatArray): Int
+    external fun pollHits(handle: Long, frames: LongArray, classes: IntArray, confidences: FloatArray, levels: FloatArray, features: FloatArray, extra: FloatArray): Int
+    external fun setListenMode(handle: Long, mode: Int)
+    external fun learnProfile(handle: Long, midi: Int)
+    external fun setHarmonicProfile(handle: Long, profile: FloatArray)
+    external fun harmonicProfile(handle: Long): FloatArray
     external fun calibrationAdd(handle: Long, cls: Int, features: FloatArray)
     external fun calibrationClear(handle: Long, cls: Int)
     external fun sequenceStartFrame(handle: Long): Long

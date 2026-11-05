@@ -22,6 +22,7 @@ private class Holder {
     var lastLight = false
     var pendingLight = false
     var lastCursor: Long? = -2L
+    var lastMarks: String = ""
     var onTap: (Long) -> Unit = {}
 }
 
@@ -30,7 +31,7 @@ private fun jsString(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "
 /** Loads web/alphatab/index.html from the app bundle (add the `alphatab` folder as a bundle resource). */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier) {
+actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier, marks: String) {
     val holder = remember { Holder() }
     holder.onTap = onTap
     val delegate = remember {
@@ -70,6 +71,10 @@ actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boo
             if (cursorTick != holder.lastCursor && holder.ready) {
                 holder.lastCursor = cursorTick
                 web.evaluateJavaScript("setCursor(${cursorTick ?: "null"})", null)
+            }
+            if (marks != holder.lastMarks && holder.ready) {
+                holder.lastMarks = marks
+                web.evaluateJavaScript("setMarks(${jsString(marks)})", null)
             }
         },
     )

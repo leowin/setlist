@@ -5,8 +5,14 @@ import at.zentriert.setlist.currentTimeMillis
 /** One note on/off for the sequencer; seconds are relative to the start of playback. */
 data class PlaybackEvent(val seconds: Double, val part: Int, val key: Int, val velocity: Int)
 
-/** One hit the listener heard: engine frame (output clock), recognised pad or -1, loudness in dB, sound features. */
-data class DetectedHit(val frame: Long, val cls: Int, val confidence: Float, val levelDb: Float, val features: FloatArray)
+/**
+ * One hit the listener heard: engine frame (output clock), recognised pad (drums) or MIDI note (melodic) or -1,
+ * loudness in dB, sound features; melodic hits carry cents and how many notes sounded (0 = calibration note learned).
+ */
+data class DetectedHit(val frame: Long, val cls: Int, val confidence: Float, val levelDb: Float, val features: FloatArray, val cents: Float = 0f, val voices: Int = 1)
+
+/** What the listener is listening for. */
+enum class ListenMode { DRUMS, MONO, POLY }
 
 const val HIT_FEATURES = 20
 
@@ -52,6 +58,11 @@ interface AudioEngine {
     /** Ignore the metronome click in the microphone signal (speaker playback). */
     fun setClickSuppression(on: Boolean)
     fun pollHits(): List<DetectedHit>
+    fun setListenMode(mode: ListenMode)
+    /** Calibration of a melodic instrument: the next note heard is `midi`, its partials refine the profile. */
+    fun learnProfile(midi: Int)
+    fun setHarmonicProfile(profile: FloatArray)
+    fun harmonicProfile(): FloatArray
     fun addCalibrationSample(cls: Int, features: FloatArray)
     fun clearCalibration(cls: Int)
     fun inputLatencyNanos(): Long
@@ -115,6 +126,10 @@ class SilentAudioEngine : AudioEngine {
     override fun setListening(on: Boolean) = false
     override fun setClickSuppression(on: Boolean) {}
     override fun pollHits(): List<DetectedHit> = emptyList()
+    override fun setListenMode(mode: ListenMode) {}
+    override fun learnProfile(midi: Int) {}
+    override fun setHarmonicProfile(profile: FloatArray) {}
+    override fun harmonicProfile(): FloatArray = FloatArray(0)
     override fun addCalibrationSample(cls: Int, features: FloatArray) {}
     override fun clearCalibration(cls: Int) {}
     override fun inputLatencyNanos() = 0L

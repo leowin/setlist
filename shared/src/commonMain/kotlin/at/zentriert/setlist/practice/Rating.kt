@@ -19,6 +19,9 @@ data class RatingSummary(
     val keyAccuracy: Double? = null,
     /** 0–100. */
     val score: Int,
+    /** Melodic: intonation spread in cents (null without pitch information). */
+    val intonationSdCents: Double? = null,
+    val octaveErrors: Int = 0,
 ) {
     val hitRate: Double get() = if (expected == 0) 1.0 else hit.toDouble() / expected
 }
@@ -37,9 +40,13 @@ object Rating {
         val expected = matched.size + result.missed.size
         val hitRate = if (expected == 0) 1.0 else matched.size.toDouble() / expected
         val extraPenalty = if (expected == 0) 0.0 else 10.0 * (result.extra.size.toDouble() / expected).coerceAtMost(1.0)
-        val score = (100.0 - 0.4 * sd - 0.2 * abs(mean) - 30.0 * (1 - hitRate) - 20.0 * (1 - (keyAcc ?: 1.0)) - extraPenalty)
+        val cents = matched.filter { it.keyCorrect == true }.mapNotNull { it.observed.cents?.toDouble() }
+        val centsSd = if (cents.size < 2) null else { val m = cents.average(); sqrt(cents.sumOf { (it - m) * (it - m) } / (cents.size - 1)) }
+        val octaves = matched.count { it.octaveError }
+        val score = (100.0 - 0.4 * sd - 0.2 * abs(mean) - 30.0 * (1 - hitRate) - 20.0 * (1 - (keyAcc ?: 1.0)) - extraPenalty - 0.15 * (centsSd ?: 0.0))
             .coerceIn(0.0, 100.0)
-        return RatingSummary(expected, matched.size, result.missed.size, result.extra.size, (mean * 10).roundToInt() / 10.0, (sd * 10).roundToInt() / 10.0, keyAcc, score.roundToInt())
+        return RatingSummary(expected, matched.size, result.missed.size, result.extra.size, (mean * 10).roundToInt() / 10.0, (sd * 10).roundToInt() / 10.0, keyAcc, score.roundToInt(),
+            centsSd?.let { (it * 10).roundToInt() / 10.0 }, octaves)
     }
 
     /** Splits by bar (ticks → bar through [barOfTick]) and rates each bar on its own. */

@@ -66,6 +66,19 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Anweisungen und bietet „In der App öffnen“; die App übernimmt den Inhalt in eine Band oder privat.
 - **Band über Internet:** Der Server (`server/`, Docker/Cloud Run) verbindet die Band an getrennten Orten
   über ihren Raum; der Server ist die gemeinsame Uhr. Einrichtung, Kosten und App-Links: `server/README.md`.
+- **Zuhören & Bewerten** (👂 in der Transport-Leiste): Das Mikrofon hört beim Spielen zum Metronom oder zu den
+  Noten zu. Für **Schlagzeug** erkennt der Audiokern jeden Schlag auf etwa eine Millisekunde (Spektralfluss,
+  der eigene Klick wird ausgeblendet) und nach einer Justierung („Trommeln beibringen“: fünf Schläge pro Pad)
+  auch, welche Trommel getroffen wurde. Für **Bass und Gesang** wird die Tonhöhe verfolgt (YIN, einige Cent
+  genau), für **Gitarre und Keys** werden Akkorde in ihre Töne zerlegt (harmonische Vorlagen, bis etwa vier Töne
+  zuverlässig; dichte Sechsklänge nur teilweise). Live zeigt eine Leiste jeden Treffer als Punkt auf einer
+  ±-Skala samt erkanntem Ton/Trommel, im Notenbild färben sich die bewerteten Schläge grün/gelb/rot. Nach dem
+  Stopp: Wertung 0–100, Treffer, Streuung, Tendenz, richtige Trommel/Ton, Intonation, Balken pro Takt,
+  Verteilung und der Verlauf früherer Durchgänge (privat auf dem Handy). Unter ⚙ → „Zuhören … justieren“:
+  Mikrofon-Verzögerung (automatisch gemessen über die eigenen Klicks oder per Regler), Toleranzfenster,
+  Raster, Trommeln beibringen bzw. Referenztöne des Melodieinstruments anspielen (lernt die Obertonverteilung),
+  Live-Test mit Stimmgerät-Anzeige. Kopfhörer fürs Metronom empfohlen; lautes Schlagzeug übersteuert
+  Handymikros, das Timing bleibt davon unberührt.
 - **Fußpedal/Tasten:** Pfeiltasten, Bild↑/↓ und Leertaste/Enter blättern (Bluetooth-Page-Turner
   funktionieren damit in der Regel direkt). Die Lautstärketasten regeln die Lautstärke.
 - **Bildschirm:** 💡 hält den Bildschirm wach. ⏻ schaltet ihn „aus“ (schwarz, minimale
@@ -85,7 +98,8 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
   Live-Raum per WebSocket. `shared/.../sync/` enthält Krypto (`Crypto.kt`), Manifest-Merge und `SyncEngine`.
 - `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
   Android und CoreAudio-Backend für iOS (C-API + cinterop, siehe `iosApp/README.md`). Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
-  Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
+  Zuhören: `Listener` (Onsets, Merkmale), `DrumClassifier` (kNN), `PitchTracker` (YIN), `ChordEstimator`
+  (nicht-negative Zerlegung in Notenvorlagen). Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
 
 ## Bauen
 

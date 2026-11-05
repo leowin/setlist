@@ -178,16 +178,17 @@ Java_at_zentriert_setlist_audio_NativeAudio_inputLatencyNanos(JNIEnv*, jobject, 
     return engine(h)->inputLatencyNanos();
 }
 
-// Fills up to `capacity` hits; features are kHitFeatures floats per hit. Returns the count.
+// Fills up to `capacity` hits; features are kHitFeatures floats per hit; extra = cents, voices per hit. Returns the count.
 JNIEXPORT jint JNICALL
 Java_at_zentriert_setlist_audio_NativeAudio_pollHits(JNIEnv* env, jobject, jlong h, jlongArray frames, jintArray classes,
-                                                     jfloatArray confidences, jfloatArray levels, jfloatArray features) {
+                                                     jfloatArray confidences, jfloatArray levels, jfloatArray features, jfloatArray extra) {
     jsize capacity = env->GetArrayLength(frames);
-    std::vector<jlong> f; std::vector<jint> c; std::vector<jfloat> conf, lev, feat;
+    std::vector<jlong> f; std::vector<jint> c; std::vector<jfloat> conf, lev, feat, ex;
     setlist::HitEvent e;
     while (jsize(f.size()) < capacity && engine(h)->engine.listener.pop(e)) {
         f.push_back(e.frame); c.push_back(e.cls); conf.push_back(e.confidence); lev.push_back(e.level);
         feat.insert(feat.end(), e.features, e.features + setlist::kHitFeatures);
+        ex.push_back(e.cents); ex.push_back(float(e.voices));
     }
     jsize n = jsize(f.size());
     if (n == 0) return 0;
@@ -196,7 +197,34 @@ Java_at_zentriert_setlist_audio_NativeAudio_pollHits(JNIEnv* env, jobject, jlong
     env->SetFloatArrayRegion(confidences, 0, n, conf.data());
     env->SetFloatArrayRegion(levels, 0, n, lev.data());
     env->SetFloatArrayRegion(features, 0, n * setlist::kHitFeatures, feat.data());
+    env->SetFloatArrayRegion(extra, 0, n * 2, ex.data());
     return n;
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setListenMode(JNIEnv*, jobject, jlong h, jint mode) {
+    engine(h)->engine.listener.setMode(setlist::ListenMode(mode));
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_learnProfile(JNIEnv*, jobject, jlong h, jint midi) {
+    engine(h)->engine.listener.learnProfile(midi);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setHarmonicProfile(JNIEnv* env, jobject, jlong h, jfloatArray profile) {
+    jsize n = env->GetArrayLength(profile);
+    std::vector<float> p(n);
+    env->GetFloatArrayRegion(profile, 0, n, p.data());
+    engine(h)->engine.listener.setProfile(p);
+}
+
+JNIEXPORT jfloatArray JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_harmonicProfile(JNIEnv* env, jobject, jlong h) {
+    const auto& p = engine(h)->engine.listener.chords().profile();
+    jfloatArray out = env->NewFloatArray(jsize(p.size()));
+    env->SetFloatArrayRegion(out, 0, jsize(p.size()), p.data());
+    return out;
 }
 
 JNIEXPORT void JNICALL

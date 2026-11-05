@@ -76,13 +76,18 @@ class AndroidAudioEngine : AudioEngine {
 
     private val hitFrames = LongArray(64); private val hitClasses = IntArray(64)
     private val hitConf = FloatArray(64); private val hitLevels = FloatArray(64); private val hitFeatures = FloatArray(64 * HIT_FEATURES)
+    private val hitExtra = FloatArray(128)
 
     override fun setListening(on: Boolean): Boolean { if (on) ensureStream(); return NativeAudio.setListening(handle, on) }
     override fun setClickSuppression(on: Boolean) = NativeAudio.setClickSuppression(handle, on)
     override fun pollHits(): List<DetectedHit> {
-        val n = NativeAudio.pollHits(handle, hitFrames, hitClasses, hitConf, hitLevels, hitFeatures)
-        return List(n) { i -> DetectedHit(hitFrames[i], hitClasses[i], hitConf[i], hitLevels[i], hitFeatures.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES)) }
+        val n = NativeAudio.pollHits(handle, hitFrames, hitClasses, hitConf, hitLevels, hitFeatures, hitExtra)
+        return List(n) { i -> DetectedHit(hitFrames[i], hitClasses[i], hitConf[i], hitLevels[i], hitFeatures.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES), hitExtra[i * 2], hitExtra[i * 2 + 1].toInt()) }
     }
+    override fun setListenMode(mode: ListenMode) = NativeAudio.setListenMode(handle, mode.ordinal)
+    override fun learnProfile(midi: Int) = NativeAudio.learnProfile(handle, midi)
+    override fun setHarmonicProfile(profile: FloatArray) = NativeAudio.setHarmonicProfile(handle, profile)
+    override fun harmonicProfile(): FloatArray = NativeAudio.harmonicProfile(handle)
     override fun addCalibrationSample(cls: Int, features: FloatArray) = NativeAudio.calibrationAdd(handle, cls, features)
     override fun clearCalibration(cls: Int) = NativeAudio.calibrationClear(handle, cls)
     override fun inputLatencyNanos(): Long = NativeAudio.inputLatencyNanos(handle)

@@ -36,6 +36,10 @@ import at.zentriert.setlist.native.sl_calibration_clear
 import at.zentriert.setlist.native.sl_sequence_start_frame
 import at.zentriert.setlist.native.sl_beat_zero_frame
 import at.zentriert.setlist.native.sl_beat_frames
+import at.zentriert.setlist.native.sl_set_listen_mode
+import at.zentriert.setlist.native.sl_learn_profile
+import at.zentriert.setlist.native.sl_set_harmonic_profile
+import at.zentriert.setlist.native.sl_harmonic_profile
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -101,12 +105,16 @@ class IosAudioEngine : AudioEngine {
     override fun setListening(on: Boolean): Boolean = sl_set_listening(handle, if (on) 1 else 0) != 0
     override fun setClickSuppression(on: Boolean) = sl_set_click_suppression(handle, if (on) 1 else 0)
     override fun pollHits(): List<DetectedHit> {
-        val frames = LongArray(64); val classes = IntArray(64); val conf = FloatArray(64); val levels = FloatArray(64); val features = FloatArray(64 * HIT_FEATURES)
-        val n = frames.usePinned { f -> classes.usePinned { c -> conf.usePinned { k -> levels.usePinned { l -> features.usePinned { ft ->
-            sl_poll_hits(handle, f.addressOf(0), c.addressOf(0), k.addressOf(0), l.addressOf(0), ft.addressOf(0), 64)
-        } } } } }
-        return List(n) { i -> DetectedHit(frames[i], classes[i], conf[i], levels[i], features.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES)) }
+        val frames = LongArray(64); val classes = IntArray(64); val conf = FloatArray(64); val levels = FloatArray(64); val features = FloatArray(64 * HIT_FEATURES); val extra = FloatArray(128)
+        val n = frames.usePinned { f -> classes.usePinned { c -> conf.usePinned { k -> levels.usePinned { l -> features.usePinned { ft -> extra.usePinned { ex ->
+            sl_poll_hits(handle, f.addressOf(0), c.addressOf(0), k.addressOf(0), l.addressOf(0), ft.addressOf(0), ex.addressOf(0), 64)
+        } } } } } }
+        return List(n) { i -> DetectedHit(frames[i], classes[i], conf[i], levels[i], features.copyOfRange(i * HIT_FEATURES, (i + 1) * HIT_FEATURES), extra[i * 2], extra[i * 2 + 1].toInt()) }
     }
+    override fun setListenMode(mode: ListenMode) = sl_set_listen_mode(handle, mode.ordinal)
+    override fun learnProfile(midi: Int) = sl_learn_profile(handle, midi)
+    override fun setHarmonicProfile(profile: FloatArray) { if (profile.isNotEmpty()) profile.usePinned { sl_set_harmonic_profile(handle, it.addressOf(0), profile.size) } }
+    override fun harmonicProfile(): FloatArray { val out = FloatArray(8); val n = out.usePinned { sl_harmonic_profile(handle, it.addressOf(0), 8) }; return out.copyOf(n) }
     override fun addCalibrationSample(cls: Int, features: FloatArray) { features.usePinned { sl_calibration_add(handle, cls, it.addressOf(0)) } }
     override fun clearCalibration(cls: Int) = sl_calibration_clear(handle, cls)
     override fun inputLatencyNanos(): Long = sl_input_latency_nanos(handle)

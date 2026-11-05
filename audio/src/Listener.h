@@ -4,18 +4,24 @@
 #include <atomic>
 #include <cstdint>
 #include <vector>
+#include "ChordEstimator.h"
 #include "DrumClassifier.h"
 #include "Fft.h"
+#include "PitchTracker.h"
 
 namespace setlist {
 
 struct HitEvent {
     int64_t frame;           // engine (output clock) frame at which the sound reached the microphone
-    int cls;                 // recognised pad (GM key) or -1
+    int cls;                 // drums: recognised pad (GM key) or -1; melodic: MIDI note
     float confidence;        // 0..1
     float level;             // loudness in dB (0 = full scale)
+    float cents;             // melodic: deviation from the MIDI note, -50..50
+    int voices;              // melodic: how many notes were heard at this moment (chords)
     float features[kHitFeatures];
 };
+
+enum class ListenMode { Drums, Mono, Poly };
 
 class Listener {
 public:
@@ -27,7 +33,15 @@ public:
     void setClickSuppression(bool on) { suppressClick_.store(on); }
     void setEnabled(bool on) { enabled_.store(on); if (!on) reset(); }
     bool enabled() const { return enabled_.load(); }
+    void setMode(ListenMode m) { mode_.store(int(m)); }
+    ListenMode mode() const { return ListenMode(mode_.load()); }
     DrumClassifier& classifier() { return classifier_; }
+    ChordEstimator& chords() { return chords_; }
+    // Calibration of a melodic instrument: the next note heard (Poly mode) is taken as `midi` and its
+    // partial strengths are folded into the instrument profile used by the chord estimator.
+    void learnProfile(int midi) { learnMidi_.store(midi); }
+    void setProfile(const std::vector<float>& profile) { learnedProfile_ = profile; learnedCount_ = profile.empty() ? 0 : 1; if (!profile.empty()) chords_.setProfile(profile); }
+    bool learning() const { return learnMidi_.load() >= 0; }
 
     // Audio thread: mono input samples; `firstFrame` is the engine frame of in[0].
     void process(const float* in, int frames, int64_t firstFrame);
@@ -48,11 +62,30 @@ private:
 
     void reset();
     void analyseHop();
+    void onOnset(int64_t onset);
     void finish(const Pending& p);
+    void finishMono(const Pending& p);
+    void finishPoly(const Pending& p);
+    void trackPitch();
+    void push(const HitEvent& e);
     float ringAt(int64_t frame) const { return ring_[size_t(frame % ring_.size())]; }
     float rawAt(int64_t frame) const { return rawRing_[size_t(frame % rawRing_.size())]; }
 
     std::atomic<bool> enabled_{false}, suppressClick_{false};
+    std::atomic<int> mode_{0};
+    std::atomic<int> learnMidi_{-1};
+    int learnedCount_ = 0;
+    std::vector<float> learnedProfile_;
+    PitchTracker pitch_;
+    ChordEstimator chords_;
+    // Mono: pitch track (10.7 ms steps) and the note being formed.
+    struct PitchFrame { int64_t frame; float midi; float conf; };
+    std::vector<PitchFrame> track_;
+    int64_t nextPitch_ = 0;
+    int64_t noteStart_ = -1;       // start of the note currently sounding (-1 none)
+    int noteMidi_ = -1;            // its rounded pitch once emitted
+    int jumpCount_ = 0;
+    int64_t lastMonoOnset_ = -1;
     int sampleRate_ = 48000;
     Fft fft_{kWindow};
     std::vector<float> window_, frame_, mag_, prevMag_, ring_, rawRing_;

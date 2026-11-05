@@ -44,8 +44,14 @@ int64_t sl_nanos_for_frame(sl_engine* e, int64_t frame);
 int sl_set_listening(sl_engine* e, int on);
 void sl_set_click_suppression(sl_engine* e, int on);
 int64_t sl_input_latency_nanos(sl_engine* e);
-// Fills up to `capacity` hits (features: SL_HIT_FEATURES floats per hit); returns the count.
-int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confidences, float* levels, float* features, int capacity);
+// Fills up to `capacity` hits (features: SL_HIT_FEATURES floats per hit; extra: cents, voices per hit); returns the count.
+int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confidences, float* levels, float* features, float* extra, int capacity);
+// 0 = drums, 1 = monophonic (bass, voice), 2 = polyphonic (guitar, keys)
+void sl_set_listen_mode(sl_engine* e, int mode);
+void sl_learn_profile(sl_engine* e, int midi);
+void sl_set_harmonic_profile(sl_engine* e, const float* profile, int count);
+// Writes up to `capacity` partial strengths; returns how many there are.
+int sl_harmonic_profile(sl_engine* e, float* out, int capacity);
 void sl_calibration_add(sl_engine* e, int cls, const float* features);
 void sl_calibration_clear(sl_engine* e, int cls);
 int64_t sl_sequence_start_frame(sl_engine* e);

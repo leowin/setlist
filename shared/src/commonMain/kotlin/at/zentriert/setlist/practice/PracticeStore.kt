@@ -12,7 +12,7 @@ import kotlinx.serialization.json.Json
 
 /** One heard hit as stored with a take. */
 @Serializable
-data class HitRecord(val seconds: Double, val deviationMs: Double? = null, val expectedKey: Int? = null, val playedKey: Int? = null, val expectedTick: Long? = null)
+data class HitRecord(val seconds: Double, val deviationMs: Double? = null, val expectedKey: Int? = null, val playedKey: Int? = null, val expectedTick: Long? = null, val cents: Float? = null)
 
 /** One practice take of a song; private to this phone. */
 @Serializable
@@ -30,12 +30,26 @@ data class PracticeSession(
     val hits: List<HitRecord>,
 )
 
-/** Calibration recordings per drum pad / reference note, kept per phone. */
+/**
+ * Calibration kept per phone: drum pad recordings, the partial profile of each melodic instrument
+ * (how strong its overtones are, from the reference notes played) and the measured microphone delay.
+ */
 @Serializable
-data class CalibrationData(val samples: Map<Int, List<List<Float>>> = emptyMap(), val micOffsetMeasuredMs: Int? = null) {
+data class CalibrationData(
+    val samples: Map<Int, List<List<Float>>> = emptyMap(),
+    val micOffsetMeasuredMs: Int? = null,
+    val profiles: Map<String, List<Float>> = emptyMap(),
+    /** Reference notes already learned per instrument (MIDI numbers). */
+    val learnedNotes: Map<String, List<Int>> = emptyMap(),
+) {
     fun count(cls: Int) = samples[cls]?.size ?: 0
     fun add(cls: Int, features: FloatArray) = copy(samples = samples + (cls to (samples[cls].orEmpty() + listOf(features.toList()))))
     fun clear(cls: Int) = copy(samples = samples - cls)
+    fun withProfile(instrument: String, profile: FloatArray, midi: Int) = copy(
+        profiles = profiles + (instrument to profile.toList()),
+        learnedNotes = learnedNotes + (instrument to (learnedNotes[instrument].orEmpty() + midi).distinct()),
+    )
+    fun clearProfile(instrument: String) = copy(profiles = profiles - instrument, learnedNotes = learnedNotes - instrument)
 }
 
 /** practice/<songId>.json (takes, newest last) and practice/calibration.json. */

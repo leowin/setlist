@@ -69,7 +69,11 @@ fun TimingMeter(vm: MainViewModel, modifier: Modifier = Modifier) {
             }
         }
         Column(Modifier.padding(start = 8.dp), horizontalAlignment = Alignment.End) {
-            last?.observed?.key?.takeIf { it >= 0 }?.let { Text(DrumNames.name(it), color = if (last.keyCorrect == false) Bad else Color.White, fontSize = 11.sp) }
+            last?.observed?.key?.takeIf { it >= 0 }?.let { key ->
+                val cents = last.observed.cents
+                val name = if (cents == null) DrumNames.name(key) else DrumNames.noteName(key) + (if (kotlin.math.abs(cents) >= 5) " ${if (cents > 0) "+" else ""}${cents.toInt()}¢" else "")
+                Text(name, color = if (last.keyCorrect == false) Bad else Color.White, fontSize = 11.sp)
+            }
             summary?.let { Text("${it.score} · ${if (it.meanMs < 0) "früh" else "spät"} ${kotlin.math.abs(it.meanMs).toInt()} ms", color = Color(0xFF9E9E9E), fontSize = 10.sp) }
         }
     }

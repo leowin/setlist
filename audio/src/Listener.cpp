@@ -1,6 +1,7 @@
 #include "Listener.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 namespace setlist {
 
@@ -43,6 +44,8 @@ void Listener::setSampleRate(int sampleRate) {
         double lo = 60.0 * std::pow(200.0, b / 16.0), hi = 60.0 * std::pow(200.0, (b + 1) / 16.0);
         bandLo_[b] = float(lo / binHz); bandHi_[b] = float(std::min(hi / binHz, double(kWindow / 2)));
     }
+    pitch_.setSampleRate(sampleRate);
+    chords_.setSampleRate(sampleRate);
     reset();
 }
 
@@ -54,6 +57,7 @@ void Listener::reset() {
     lastFlux_[0] = lastFlux_[1] = 0;
     written_ = 0; nextHop_ = 0; lastOnset_ = -1; fluxPos_ = 0;
     pending_.clear();
+    track_.clear(); nextPitch_ = 0; noteStart_ = -1; noteMidi_ = -1; jumpCount_ = 0; lastMonoOnset_ = -1;
     for (auto& n : notch_) n.z1 = n.z2 = 0;
 }
 
@@ -71,6 +75,7 @@ void Listener::process(const float* in, int frames, int64_t firstFrame) {
     }
     written_ += frames;
     while (written_ >= nextHop_ + kWindow) analyseHop();
+    if (mode() == ListenMode::Mono) while (written_ >= nextPitch_ + PitchTracker::kFrame) trackPitch();
     // Features need some sound after the onset; finish hits once it has arrived.
     while (!pending_.empty() && written_ >= pending_.front().needUntil) {
         finish(pending_.front());
@@ -99,7 +104,9 @@ void Listener::analyseHop() {
     // Peak picking on the previous hop: a local maximum above the adaptive threshold.
     std::vector<float> sorted(fluxHistory_);
     std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
-    float threshold = sorted[sorted.size() / 2] * thresholdFactor_ + thresholdFloor_;
+    // Tonal attacks move many harmonic bins at once, so they clear a higher floor; beating partials don't.
+    float floorForMode = mode() == ListenMode::Drums ? thresholdFloor_ : thresholdFloor_ * 15.0f;
+    float threshold = sorted[sorted.size() / 2] * thresholdFactor_ + floorForMode;
     float candidate = lastFlux_[1];
     bool peak = candidate > threshold && candidate >= lastFlux_[0] && candidate >= flux;
     if (peak) {
@@ -134,8 +141,11 @@ void Listener::analyseHop() {
             }
         }
         if (onset >= 0 && (lastOnset_ < 0 || onset - lastOnset_ >= sampleRate_ * 50 / 1000)) {
+#ifdef LISTENER_DEBUG
+            std::fprintf(stderr, "onset %lld flux %.2f thr %.2f peakE %.4g base %.4g\n", (long long)onset, candidate, threshold, peakE, baseline);
+#endif
             lastOnset_ = onset;
-            pending_.push_back({onset, onset + kFeatureSpan});
+            onOnset(onset);
         }
     }
     fluxHistory_[fluxPos_] = flux;
@@ -144,7 +154,107 @@ void Listener::analyseHop() {
     lastFlux_[1] = flux;
 }
 
+void Listener::onOnset(int64_t onset) {
+    switch (mode()) {
+        case ListenMode::Drums: pending_.push_back({onset, onset + kFeatureSpan}); break;
+        case ListenMode::Poly: pending_.push_back({onset, onset + sampleRate_ / 100 + ChordEstimator::kFrame}); break;
+        case ListenMode::Mono: lastMonoOnset_ = onset; break;   // the pitch track decides when a note is there
+    }
+}
+
+void Listener::push(const HitEvent& e) {
+    int head = head_.load(std::memory_order_relaxed);
+    int next = (head + 1) % kQueue;
+    if (next == tail_.load(std::memory_order_acquire)) return;  // UI isn't reading; drop
+    queue_[head] = e;
+    head_.store(next, std::memory_order_release);
+}
+
+// Mono: a note is reported once its pitch has held for ~40 ms; it starts at the last onset (if close) or
+// where the pitch arrived/jumped. A pitch jump of more than half a semitone starts the next note.
+void Listener::trackPitch() {
+    const int64_t start = nextPitch_;
+    nextPitch_ += 2 * kHop;
+    std::vector<float> buf(PitchTracker::kFrame);
+    for (int i = 0; i < PitchTracker::kFrame; ++i) buf[i] = ringAt(start + i);
+    float midi = 0, conf = 0;
+    bool voiced = pitch_.analyse(buf.data(), midi, conf) && conf >= 0.6f;
+    PitchFrame f{start, midi, voiced ? conf : 0.0f};
+    track_.push_back(f);
+    if (track_.size() > 64) track_.erase(track_.begin());
+    if (!voiced) {
+        // Six unvoiced frames (~65 ms) end the note.
+        int quiet = 0; for (auto it = track_.rbegin(); it != track_.rend() && it->conf == 0.0f; ++it) ++quiet;
+        if (quiet >= 6) { noteStart_ = -1; noteMidi_ = -1; jumpCount_ = 0; }
+        return;
+    }
+    if (noteStart_ < 0) {
+        // New note begins with this frame (or at the onset the flux detector saw just before).
+        int64_t begin = start + PitchTracker::kFrame / 4;
+        if (lastMonoOnset_ >= 0 && start + PitchTracker::kFrame / 2 - lastMonoOnset_ < sampleRate_ * 120 / 1000) begin = lastMonoOnset_;
+        noteStart_ = begin; noteMidi_ = -1; jumpCount_ = 0;
+        return;
+    }
+    if (noteMidi_ >= 0) {
+        // Sounding note: watch for a jump (3 frames in a row away from it) or a new attack.
+        bool away = std::fabs(midi - noteMidi_) > 0.5f;
+        jumpCount_ = away ? jumpCount_ + 1 : 0;
+        bool attack = lastMonoOnset_ > noteStart_ && start - lastMonoOnset_ < sampleRate_ * 80 / 1000 && lastMonoOnset_ - noteStart_ > sampleRate_ * 60 / 1000;
+        if (jumpCount_ >= 3 || attack) {
+            // A pitch reading belongs to the middle of its window: the jump happened about there.
+            noteStart_ = attack ? lastMonoOnset_ : track_[track_.size() - 3].frame + PitchTracker::kFrame / 2;
+            noteMidi_ = -1; jumpCount_ = 0;
+        }
+        return;
+    }
+    // Forming: four voiced frames since the start → emit with the median pitch.
+    std::vector<float> ms;
+    for (const PitchFrame& t : track_) if (t.frame >= noteStart_ && t.conf > 0) ms.push_back(t.midi);
+    if (ms.size() < 4) return;
+    std::sort(ms.begin(), ms.end());
+    float med = ms[ms.size() / 2];
+    HitEvent e{};
+    e.frame = ringOrigin_ + noteStart_;
+    e.cls = int(std::lround(med));
+    e.cents = (med - e.cls) * 100.0f;
+    e.confidence = conf;
+    e.voices = 1;
+    double energy = 0; for (int i = 0; i < 1024; ++i) { float v = ringAt(noteStart_ + i); energy += double(v) * v; }
+    e.level = float(10.0 * std::log10(energy / 1024 + 1e-12));
+    noteMidi_ = e.cls;
+    push(e);
+}
+
+void Listener::finishPoly(const Pending& p) {
+    std::vector<float> buf(ChordEstimator::kFrame);
+    const int64_t from = p.frame + sampleRate_ / 100;   // skip the first 10 ms (attack noise)
+    for (int i = 0; i < ChordEstimator::kFrame; ++i) buf[i] = ringAt(from + i);
+    int learn = learnMidi_.exchange(-1);
+    if (learn >= 0) {
+        // Calibration: this note is `learn`; average its partial profile into the instrument's.
+        auto w = chords_.measureProfile(buf.data(), learn);
+        if (w[0] > 0) {
+            if (learnedProfile_.empty()) learnedProfile_.assign(w.size(), 0.0f);
+            for (size_t i = 0; i < w.size(); ++i) learnedProfile_[i] = (learnedProfile_[i] * learnedCount_ + w[i]) / (learnedCount_ + 1);
+            ++learnedCount_;
+            chords_.setProfile(learnedProfile_);
+        }
+        HitEvent e{}; e.frame = ringOrigin_ + p.frame; e.cls = learn; e.confidence = 1.0f; e.voices = 0;   // voices 0 = "learned"
+        push(e);
+        return;
+    }
+    auto notes = chords_.estimate(buf.data());
+    double energy = 0; for (int i = 0; i < 1024; ++i) { float v = ringAt(p.frame + i); energy += double(v) * v; }
+    float level = float(10.0 * std::log10(energy / 1024 + 1e-12));
+    for (const auto& n : notes) {
+        HitEvent e{};
+        e.frame = ringOrigin_ + p.frame; e.cls = n.midi; e.confidence = n.weight; e.voices = int(notes.size()); e.level = level;
+        push(e);
+    }
+}
+
 void Listener::finish(const Pending& p) {
+    if (mode() == ListenMode::Poly) { finishPoly(p); return; }
     HitEvent e{};
     e.frame = ringOrigin_ + p.frame;
     // Spectrum of the first 21 ms after the attack.
@@ -175,12 +285,7 @@ void Listener::finish(const Pending& p) {
     e.level = float(10.0 * std::log10(e1 / kWindow + 1e-12));
     e.features[19] = e.level;
     e.cls = classifier_.classify(e.features, e.confidence);
-
-    int head = head_.load(std::memory_order_relaxed);
-    int next = (head + 1) % kQueue;
-    if (next == tail_.load(std::memory_order_acquire)) return;  // UI isn't reading; drop
-    queue_[head] = e;
-    head_.store(next, std::memory_order_release);
+    push(e);
 }
 
 bool Listener::pop(HitEvent& e) {

@@ -88,6 +88,7 @@ fun NotationPane(
                 settings.notationScale, settings.notationLight,
                 onTap = { tick -> vm.jumpTo(score, tick * score.ppq / 960) },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
+                marks = if (vm.listening) vm.noteMarks.entries.joinToString(",") { "${it.key * 960 / score.ppq}:${it.value}" } else "",
             )
         }
     }

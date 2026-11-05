@@ -9,12 +9,14 @@ import kotlin.math.roundToLong
 /** A moment the player should hit: song time in seconds, the tick, and the drum/note if the reference has one. */
 data class Expected(val seconds: Double, val tick: Long, val key: Int? = null)
 
-/** What the microphone heard, in song seconds. */
-data class Observed(val seconds: Double, val key: Int? = null, val confidence: Float = 0f, val levelDb: Float = 0f)
+/** What the microphone heard, in song seconds; [cents] only for melodic notes (deviation from the MIDI pitch). */
+data class Observed(val seconds: Double, val key: Int? = null, val confidence: Float = 0f, val levelDb: Float = 0f, val cents: Float? = null)
 
 /** One heard hit after matching: its expected counterpart (null = extra hit) and the deviation (+ = late). */
 data class MatchedHit(val observed: Observed, val expected: Expected?, val deviationMs: Double?) {
     val keyCorrect: Boolean? get() = if (expected?.key == null || observed.key == null || observed.key < 0) null else expected.key == observed.key
+    /** Right pitch class but the wrong octave (melodic instruments). */
+    val octaveError: Boolean get() = keyCorrect == false && expected?.key != null && observed.key != null && (expected.key - observed.key) % 12 == 0
 }
 
 data class MatchResult(val hits: List<MatchedHit>, val missed: List<Expected>) {

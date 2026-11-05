@@ -42,6 +42,7 @@ import at.zentriert.setlist.practice.PracticeStore
 import at.zentriert.setlist.practice.Rating
 import at.zentriert.setlist.practice.RatingSummary
 import at.zentriert.setlist.audio.DetectedHit
+import at.zentriert.setlist.audio.ListenMode
 import at.zentriert.setlist.practice.MatchResult
 import at.zentriert.setlist.sync.SyncEngine
 import at.zentriert.setlist.sync.SyncStatus
@@ -1178,9 +1179,32 @@ class MainViewModel(
     private var take: Take? = null
     private var loopbackHits = ArrayList<Double>()
 
-    private class Take(val song: Song?, val score: Score, val part: Part?, val fromTick: Long, val mode: String, val heard: ArrayList<Observed> = ArrayList())
+    private class Take(val song: Song?, val score: Score, val part: Part?, val instrument: Instrument, val fromTick: Long, val mode: String, val heard: ArrayList<Observed> = ArrayList())
 
-    fun openCalibration(songId: String?) { leavePerformance(); screen = Screen.Calibration(songId); startListening() }
+    /** The instrument the listener rates: mine, if the song has it, else the first part with notes, else drums. */
+    fun practiceInstrument(score: Score?): Instrument {
+        val parts = score?.parts?.filter { it.notes.isNotEmpty() }.orEmpty()
+        return settings.myInstrument?.takeIf { me -> parts.isEmpty() || parts.any { it.instrument == me } }
+            ?: parts.firstOrNull()?.instrument ?: Instrument.DRUMS
+    }
+
+    private fun listenModeFor(instrument: Instrument) = when (instrument) {
+        Instrument.DRUMS -> ListenMode.DRUMS
+        Instrument.BASS, Instrument.VOCALS -> ListenMode.MONO
+        Instrument.GUITAR, Instrument.KEYS -> ListenMode.POLY
+    }
+
+    /** Switches the listener to an instrument, loading its calibration. */
+    private fun applyListenInstrument(instrument: Instrument) {
+        audio.setListenMode(listenModeFor(instrument))
+        calibration.profiles[instrument.name]?.let { audio.setHarmonicProfile(it.toFloatArray()) }
+    }
+
+    fun openCalibration(songId: String?) {
+        leavePerformance(); screen = Screen.Calibration(songId)
+        calibrationInstrument = practiceInstrument(findSong(null, songId.orEmpty())?.let { score(it) })
+        if (startListening()) applyListenInstrument(calibrationInstrument)
+    }
 
     /** Microphone on (the UI has asked for the permission first). */
     fun startListening(): Boolean {
@@ -1210,8 +1234,10 @@ class MainViewModel(
     /** Called by playScore/startMetronome: a new take starts whenever something plays while listening. */
     private fun openTake(song: Song?, score: Score, fromTick: Long, withNotes: Boolean) {
         if (!listening || screen is Screen.Calibration) return
-        val part = if (withNotes) score.parts.firstOrNull { it.instrument == Instrument.DRUMS && it.notes.isNotEmpty() } else null
-        take = Take(song, score, part, fromTick, if (part != null) "score" else "grid")
+        val instrument = practiceInstrument(score)
+        val part = if (withNotes) score.parts.firstOrNull { it.instrument == instrument && it.notes.isNotEmpty() } else null
+        applyListenInstrument(instrument)
+        take = Take(song, score, part, instrument, fromTick, if (part != null) "score" else "grid")
         liveHits = emptyList(); liveSummary = null
     }
 
@@ -1225,6 +1251,14 @@ class MainViewModel(
                 loopbackHits += dev + settings.micOffsetMs   // raw delay, independent of the current setting
                 return
             }
+            if (hit.voices == 0) {
+                // A reference note was learned: keep the instrument's partial profile.
+                calibration = calibration.withProfile(calibrationInstrument.name, audio.harmonicProfile(), hit.cls)
+                practiceStore.saveCalibration(calibration)
+                learningNote = null
+                lastRecognized = hit.cls to 1f
+                return
+            }
             calibratingPad?.let { pad ->
                 calibration = calibration.add(pad, hit.features)
                 audio.addCalibrationSample(pad, hit.features)
@@ -1234,6 +1268,8 @@ class MainViewModel(
                 return
             }
             lastRecognized = hit.cls to hit.confidence
+            lastCents = hit.cents
+            liveNotes = if (hit.voices > 1) (liveNotes.filter { it.frame == hit.frame } + hit).takeLast(6) else listOf(hit)
             return
         }
         val t = take ?: return
@@ -1243,7 +1279,7 @@ class MainViewModel(
             else -> return
         }
         if (seconds < -0.2) return   // count-in
-        t.heard += Observed(seconds, hit.cls, hit.confidence, hit.levelDb)
+        t.heard += Observed(seconds, hit.cls, hit.confidence, hit.levelDb, if (t.instrument == Instrument.DRUMS) null else hit.cents)
         val result = HitMatcher.match(expectedFor(t, seconds + 0.3), t.heard, settings.practiceWindowMs.toDouble())
         liveHits = result.hits.takeLast(12)
         liveSummary = Rating.summarize(MatchResult(result.hits, result.missed.filter { it.seconds < seconds - 0.3 }))
@@ -1267,9 +1303,9 @@ class MainViewModel(
         val map = TempoMap(t.score)
         val bars = Rating.perBar(result, barOfTick = { (it / barTicks).toInt() + 1 }, barOfSeconds = { (map.microsToTick((it * 1_000_000).toLong()) / barTicks).toInt() + 1 })
         val session = PracticeSession(
-            songId = t.song?.id ?: t.score.id, mode = t.mode, instrument = Instrument.DRUMS.name, bpm = t.score.bpm,
+            songId = t.song?.id ?: t.score.id, mode = t.mode, instrument = t.instrument.name, bpm = t.score.bpm,
             windowMs = settings.practiceWindowMs.toDouble(), summary = Rating.summarize(result), bars = bars,
-            hits = result.hits.map { HitRecord(it.observed.seconds, it.deviationMs, it.expected?.key, it.observed.key, it.expected?.tick) },
+            hits = result.hits.map { HitRecord(it.observed.seconds, it.deviationMs, it.expected?.key, it.observed.key, it.expected?.tick, it.observed.cents) },
         )
         practiceStore.append(session)
         practiceResult = session
@@ -1278,7 +1314,46 @@ class MainViewModel(
 
     fun practiceHistory(songId: String): List<PracticeSession> = practiceStore.sessions(songId)
 
+    /** Marks for the sheet music while listening: expected tick → 0 good, 1 fair, 2 bad (wrong/late/early). */
+    val noteMarks: Map<Long, Int> get() {
+        val window = settings.practiceWindowMs.toDouble()
+        val out = HashMap<Long, Int>()
+        for (h in liveHits) {
+            val tick = h.expected?.tick ?: continue
+            val dev = h.deviationMs ?: continue
+            val state = when {
+                h.keyCorrect == false -> 2
+                kotlin.math.abs(dev) <= window * 0.2 -> 0
+                kotlin.math.abs(dev) <= window * 0.5 -> 1
+                else -> 2
+            }
+            out[tick] = maxOf(out[tick] ?: 0, state)
+        }
+        return out
+    }
+
     // Calibration screen
+    var calibrationInstrument by mutableStateOf(Instrument.DRUMS)
+        private set
+    var learningNote by mutableStateOf<Int?>(null)
+        private set
+    var lastCents by mutableStateOf(0f)
+        private set
+    var liveNotes by mutableStateOf<List<DetectedHit>>(emptyList())
+        private set
+
+    fun chooseCalibrationInstrument(instrument: Instrument) {
+        calibrationInstrument = instrument
+        calibratingPad = null; learningNote = null; lastRecognized = null; liveNotes = emptyList()
+        // Learning happens in the polyphonic analyser; the live test uses the instrument's own mode.
+        applyListenInstrument(instrument)
+    }
+    fun learnNote(midi: Int) { learningNote = midi; audio.setListenMode(ListenMode.POLY); audio.learnProfile(midi) }
+    fun cancelLearning() { learningNote = null; applyListenInstrument(calibrationInstrument) }
+    fun clearProfile(instrument: Instrument) {
+        calibration = calibration.clearProfile(instrument.name); practiceStore.saveCalibration(calibration)
+        audio.setHarmonicProfile(floatArrayOf(1f, 0.54f, 0.37f, 0.29f, 0.23f, 0.2f))
+    }
     fun recordPad(pad: Int) { calibratingPad = pad; lastRecognized = null }
     fun clearPad(pad: Int) {
         calibration = calibration.clear(pad); audio.clearCalibration(pad); practiceStore.saveCalibration(calibration)

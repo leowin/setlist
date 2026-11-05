@@ -39,10 +39,11 @@ expect fun rememberFilePicker(onPicked: (bytes: ByteArray, name: String) -> Unit
 
 /**
  * Sheet music/tabs rendered by the bundled alphaTab (web/alphatab) in a web view.
- * [cursorTick] is in alphaTab ticks (960 per quarter) or null for no cursor.
+ * [cursorTick] is in alphaTab ticks (960 per quarter) or null for no cursor. [marks] colours beats while
+ * listening: "tick:state,…" with state 0 good, 1 fair, 2 bad (alphaTab ticks).
  */
 @Composable
-expect fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier)
+expect fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boolean, onTap: (tick: Long) -> Unit, modifier: Modifier, marks: String = "")
 
 /** Monotonic clock in nanoseconds (same clock the audio engine uses for its timestamps). */
 expect fun monotonicNanos(): Long
