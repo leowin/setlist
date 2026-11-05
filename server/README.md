@@ -36,7 +36,7 @@ gelöscht. Die Handys laden ihre Daten beim nächsten Abgleich einfach wieder ho
 ```
 ./gradlew :server:run                                # Port 8080, Daten in ./data
 ./gradlew :server:test
-docker build -t setlist-server -f server/Dockerfile . && docker run -p 8080:8080 -v setlist-data:/data -e STORE_DIR=/data setlist-server
+docker build -t setlist-server . && docker run -p 8080:8080 -v setlist-data:/data -e STORE_DIR=/data setlist-server
 ```
 
 Umgebung: `PORT`, `STORE_DIR`, `ROOM_TTL_DAYS`, `ANDROID_PACKAGE`, `ANDROID_SHA256` (Fingerprints, mit Komma),
@@ -47,6 +47,12 @@ Umgebung: `PORT`, `STORE_DIR`, `ROOM_TTL_DAYS`, `ANDROID_PACKAGE`, `ANDROID_SHA2
 ```
 PROJECT=mein-projekt ANDROID_SHA256=AA:BB:… ./server/deploy/cloudrun.sh
 ```
+
+Beim ersten Deploy fehlen in neuen Projekten meist noch Rechte für das Build-Dienstkonto
+(`<projektnummer>-compute@developer.gserviceaccount.com`): Rollen `roles/cloudbuild.builds.builder`,
+`roles/storage.objectViewer` und `roles/artifactregistry.writer` vergeben (`gcloud projects add-iam-policy-binding …`).
+Das `Dockerfile` im Repo-Root (Kopie von `server/Dockerfile`) sorgt dafür, dass Cloud Run den Docker-Build statt
+der Buildpacks verwendet.
 
 Das Skript legt einen privaten Cloud-Storage-Bucket an, hängt ihn als Volume unter `/data` ein (kein
 GCS-SDK nötig) und deployt den Server mit `--max-instances 1` (das Volume hat kein Locking), Scale-to-zero,

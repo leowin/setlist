@@ -1,9 +1,10 @@
-# Build: docker build -t setlist-relay -f server/Dockerfile .
+# Build: docker build -t setlist-server .   (same file as /Dockerfile in the repo root, which Cloud Run picks up)
 # Run:   docker run -p 8080:8080 -e STORE_DIR=/data -v setlist-data:/data setlist-relay
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /src
 COPY . .
-RUN ./gradlew --no-daemon -q :server:installDist
+# chmod: checkouts from Windows lose the executable bit.
+RUN chmod +x gradlew && ./gradlew --no-daemon -q :server:installDist
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
