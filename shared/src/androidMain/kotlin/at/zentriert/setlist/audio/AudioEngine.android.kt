@@ -78,7 +78,13 @@ class AndroidAudioEngine : AudioEngine {
     private val hitConf = FloatArray(64); private val hitLevels = FloatArray(64); private val hitFeatures = FloatArray(64 * HIT_FEATURES)
     private val hitExtra = FloatArray(128)
 
-    override fun setListening(on: Boolean): Boolean { if (on) ensureStream(); return NativeAudio.setListening(handle, on) }
+    private var listeningOn = false
+    override fun setListening(on: Boolean): Boolean {
+        if (on) ensureStream()
+        listeningOn = on && NativeAudio.setListening(handle, true)
+        if (!on) NativeAudio.setListening(handle, false)
+        return !on || listeningOn
+    }
     override fun setClickSuppression(on: Boolean) = NativeAudio.setClickSuppression(handle, on)
     override fun pollHits(): List<DetectedHit> {
         val n = NativeAudio.pollHits(handle, hitFrames, hitClasses, hitConf, hitLevels, hitFeatures, hitExtra)
@@ -103,6 +109,8 @@ class AndroidAudioEngine : AudioEngine {
     override fun suspendOutput() {
         NativeAudio.metronomeStop(handle)
         NativeAudio.stopPlayback(handle)
+        // While the microphone listens the streams stay open: closing them would silence the listener.
+        if (listeningOn) return
         NativeAudio.stop(handle)
         streamRunning = false
     }

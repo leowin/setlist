@@ -106,7 +106,12 @@ class IosAudioEngine : AudioEngine {
     override fun noteOff(part: Int, key: Int) = sl_note_off(handle, part, key)
     override fun outputLatencyNanos(): Long = sl_output_latency_nanos(handle)
 
-    override fun setListening(on: Boolean): Boolean = sl_set_listening(handle, if (on) 1 else 0) != 0
+    private var listeningOn = false
+    override fun setListening(on: Boolean): Boolean {
+        listeningOn = on && sl_set_listening(handle, 1) != 0
+        if (!on) sl_set_listening(handle, 0)
+        return !on || listeningOn
+    }
     override fun setClickSuppression(on: Boolean) = sl_set_click_suppression(handle, if (on) 1 else 0)
     override fun pollHits(): List<DetectedHit> {
         val frames = LongArray(64); val classes = IntArray(64); val conf = FloatArray(64); val levels = FloatArray(64); val features = FloatArray(64 * HIT_FEATURES); val extra = FloatArray(128)
@@ -130,6 +135,10 @@ class IosAudioEngine : AudioEngine {
     override fun beatZeroFrame(): Long = sl_beat_zero_frame(handle)
     override fun beatFrames(): Double = sl_beat_frames(handle)
     override fun sampleRate(): Int = sl_sample_rate(handle)
-    override fun suspendOutput() { sl_metronome_stop(handle); sl_stop_playback(handle); sl_stop(handle); streamRunning = false }
+    override fun suspendOutput() {
+        sl_metronome_stop(handle); sl_stop_playback(handle)
+        if (listeningOn) return   // the microphone keeps the unit alive
+        sl_stop(handle); streamRunning = false
+    }
     override fun release() { handle?.let { sl_destroy(it) }; handle = null }
 }

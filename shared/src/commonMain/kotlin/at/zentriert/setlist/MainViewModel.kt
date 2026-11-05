@@ -1218,7 +1218,7 @@ class MainViewModel(
 
     /** Microphone on (the UI has asked for the permission first). */
     fun startListening(): Boolean {
-        if (listening) return true
+        if (listening) { audio.setListening(true); return true }   // re-assert: a screen change may have closed the streams
         if (!audio.setListening(true)) { micError = "Mikrofon nicht verfügbar – Berechtigung erteilt?"; return false }
         audio.setClickSuppression(true)
         if (calibration.samples.isEmpty()) calibration = practiceStore.calibration()
