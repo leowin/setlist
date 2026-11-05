@@ -121,16 +121,16 @@ fun PerformScreen(vm: MainViewModel, setlist: Setlist) {
                 val currentPane: @Composable (Modifier) -> Unit = { m ->
                     if (mode == 2 && score != null) {
                         if (landscape) Row(m) {
-                            Box(Modifier.weight(1f).fillMaxHeight()) { BeatBackground(beats, numerator); CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize()) }
+                            Box(Modifier.weight(1f).fillMaxHeight()) { if (settings.beatSurfaces) BeatBackground(beats, numerator); CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize()) }
                             VerticalDivider(color = DimColor.copy(alpha = 0.4f))
-                            Box(Modifier.weight(1.2f).fillMaxHeight()) { BeatBackground(beats, numerator); PerformNotation(vm, current!!, score, settings.fontSize, showTitle = false) }
+                            Box(Modifier.weight(1.2f).fillMaxHeight()) { if (settings.beatSurfaces) BeatBackground(beats, numerator); PerformNotation(vm, current!!, score, settings.fontSize, showTitle = false) }
                         } else Column(m) {
-                            Box(Modifier.weight(1f).fillMaxWidth()) { BeatBackground(beats, numerator); CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize()) }
+                            Box(Modifier.weight(1f).fillMaxWidth()) { if (settings.beatSurfaces) BeatBackground(beats, numerator); CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize()) }
                             HorizontalDivider(color = DimColor.copy(alpha = 0.4f))
-                            Box(Modifier.weight(1.2f).fillMaxWidth()) { BeatBackground(beats, numerator); PerformNotation(vm, current!!, score, settings.fontSize, showTitle = false) }
+                            Box(Modifier.weight(1.2f).fillMaxWidth()) { if (settings.beatSurfaces) BeatBackground(beats, numerator); PerformNotation(vm, current!!, score, settings.fontSize, showTitle = false) }
                         }
                     } else Box(m) {
-                        BeatBackground(beats, numerator)
+                        if (settings.beatSurfaces) BeatBackground(beats, numerator)
                         if (mode == 1 && score != null) PerformNotation(vm, current!!, score, settings.fontSize, showTitle = true)
                         else CurrentSong(current, index, settings.fontSize, Modifier.fillMaxSize())
                     }

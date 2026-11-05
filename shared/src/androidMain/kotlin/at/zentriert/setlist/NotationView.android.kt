@@ -43,7 +43,7 @@ actual fun NotationView(tex: String, cursorTick: Long?, scale: Float, light: Boo
                 .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
                 .build()
             WebView(context).apply {
-                setBackgroundColor(Color.parseColor("#101010"))
+                setBackgroundColor(Color.TRANSPARENT)   // the page paints its own background (light) or none (dark)
                 settings.javaScriptEnabled = true
                 settings.allowFileAccess = false
                 settings.domStorageEnabled = true

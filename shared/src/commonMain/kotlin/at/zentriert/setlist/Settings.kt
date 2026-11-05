@@ -44,6 +44,9 @@ data class PerformSettings(
     val micGainDb: Int = 0,
     /** Onset sensitivity 0–100 (50 = default thresholds). */
     val listenSensitivity: Int = 50,
+    /** Metronome: audible click and the big beat surfaces behind the song, each on its own. */
+    val clickSound: Boolean = true,
+    val beatSurfaces: Boolean = true,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -87,6 +90,8 @@ class SettingsStore(private val store: KeyValueStore) {
         micAutoGain = store.getBoolean("micAutoGain", true),
         micGainDb = store.getInt("micGainDb", 0),
         listenSensitivity = store.getInt("listenSensitivity", 50),
+        clickSound = store.getBoolean("clickSound", true),
+        beatSurfaces = store.getBoolean("beatSurfaces", true),
     )
 
     fun save(s: PerformSettings) {
@@ -120,5 +125,7 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putBoolean("micAutoGain", s.micAutoGain)
         store.putInt("micGainDb", s.micGainDb)
         store.putInt("listenSensitivity", s.listenSensitivity)
+        store.putBoolean("clickSound", s.clickSound)
+        store.putBoolean("beatSurfaces", s.beatSurfaces)
     }
 }

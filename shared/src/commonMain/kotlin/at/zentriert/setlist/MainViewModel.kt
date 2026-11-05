@@ -536,7 +536,7 @@ class MainViewModel(
     fun toggleMetronome(song: Song?) = if (metronomeOn) stopMetronome() else startMetronome(song)
 
     fun startMetronome(song: Song?) {
-        audio.setClickVolume(settings.clickVolume)
+        audio.setClickVolume(clickVolume())
         applyTransport(transportFor(song))
         openTake(song, (score(song) ?: Score()).let { sc -> tempoFor(song).let { t -> sc.withTempo(t.bpm).withMeter(t.numerator, t.denominator) } }, 0, withNotes = false)
         if (bandRole == Role.HOST) {
@@ -660,7 +660,7 @@ class MainViewModel(
             audio.setLoop(sec(maxOf(a, fromTick)), sec(b))
         } else audio.setLoop(0.0, 0.0)
         applyTransport(transport)
-        audio.setClickVolume(settings.clickVolume)
+        audio.setClickVolume(clickVolume())
         if (atNanos != null) audio.playAt(atNanos, withMetronome, metronomePhaseBeats = phaseBeats)
         else audio.play(leadSeconds = 0.15, withMetronome = withMetronome, metronomePhaseBeats = phaseBeats)
         playbackScore = score; playbackFrom = fromTick; playbackOffset = offset
@@ -910,7 +910,7 @@ class MainViewModel(
     fun startCalibration() {
         calibrationPositions.clear(); calibrationTaps = 0
         applyTransport(TransportConfig(100.0, 4, 4, 1, 0))
-        audio.setClickVolume(settings.clickVolume)
+        audio.setClickVolume(clickVolume())
         audio.startMetronome()
         metronomeOn = true
         calibrating = true
@@ -1096,7 +1096,7 @@ class MainViewModel(
                     playScore(score, msg.fromTick, msg.withMetronome, atNanos = at, countIn = msg.countInBars > 0)
                 } else {
                     stopPlayback(); stopMetronome()
-                    audio.setClickVolume(settings.clickVolume)
+                    audio.setClickVolume(clickVolume())
                     applyTransport(TransportConfig(msg.bpm, msg.numerator, msg.denominator, msg.subdivision, msg.countInBars))
                     audio.playAt(at, withMetronome = true, metronomeOnly = true)
                     metronomeOn = true
@@ -1128,7 +1128,7 @@ class MainViewModel(
         val hostNow = band?.clock?.toHost(monotonicNanos()) ?: monotonicNanos()
         val hostStart = (hostNow / 1_000_000_000L + 2) * 1_000_000_000L
         applyTransport(TransportConfig(60.0, 4, 4, 1, 0))
-        audio.setClickVolume(settings.clickVolume)
+        audio.setClickVolume(clickVolume())
         audio.playAt(hostToLocal(hostStart), withMetronome = true, metronomeOnly = true)
         syncTest = true
         metronomeOn = true
@@ -1401,7 +1401,7 @@ class MainViewModel(
             if (!loopbackMeasuring) return@launch
             audio.stopMetronome(); metronomeOn = false
             audio.setClickSuppression(true)
-            audio.setClickVolume(settings.clickVolume)
+            audio.setClickVolume(clickVolume())
             loopbackMeasuring = false
             val valid = loopbackHits.filter { kotlin.math.abs(it) < 400 }.sorted()
             if (valid.size >= 4) {
@@ -1413,11 +1413,14 @@ class MainViewModel(
         }
     }
 
+    /** Click volume as heard: 0 when the audible click is switched off (the beat surfaces keep running). */
+    fun clickVolume(): Float = if (settings.clickSound) settings.clickVolume else 0f
+
     fun updateSettings(transform: (PerformSettings) -> PerformSettings) {
         val before = settings
         settings = transform(settings)
         settingsStore.save(settings)
-        audio.setClickVolume(settings.clickVolume)
+        audio.setClickVolume(clickVolume())
         if (before.micGainDb != settings.micGainDb || before.micAutoGain != settings.micAutoGain || before.listenSensitivity != settings.listenSensitivity) applyMicGain()
         repo.author = settings.myName.ifBlank { settings.deviceId.take(8) }
     }

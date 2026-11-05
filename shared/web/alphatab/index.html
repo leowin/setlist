@@ -86,7 +86,8 @@
 
   window.renderTex = (tex, scale, light) => {
     const theme = light ? THEMES.light : THEMES.dark;
-    document.documentElement.style.background = document.body.style.background = theme.bg;
+    // Dark: transparent, so the app's beat surfaces behind the sheet music stay visible.
+    document.documentElement.style.background = document.body.style.background = light ? theme.bg : 'transparent';
     const r = api.settings.display.resources;
     for (const k of Object.keys(theme)) if (k !== 'bg') r[k] = alphaTab.model.Color.fromJson(theme[k]);
     api.settings.display.scale = scale || 1.0;

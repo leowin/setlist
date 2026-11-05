@@ -267,11 +267,20 @@ private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: (
         },
         text = {
             if (tab == 0) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Klick hörbar", Modifier.weight(1f))
+                    Switch(checked = settings.clickSound, onCheckedChange = { v -> vm.updateSettings { it.copy(clickSound = v) } })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Takt-Flächen im Konzert", Modifier.weight(1f))
+                    Switch(checked = settings.beatSurfaces, onCheckedChange = { v -> vm.updateSettings { it.copy(beatSurfaces = v) } })
+                }
                 Text("Lautstärke")
                 Slider(
                     value = settings.clickVolume,
                     onValueChange = { v -> vm.updateSettings { it.copy(clickVolume = v) } },
                     valueRange = 0f..1f,
+                    enabled = settings.clickSound,
                 )
                 Dropdown(
                     label = "Unterteilung",
