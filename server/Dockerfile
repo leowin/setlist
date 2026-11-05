@@ -3,8 +3,8 @@
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /src
 COPY . .
-# chmod: checkouts from Windows lose the executable bit.
-RUN chmod +x gradlew && ./gradlew --no-daemon -q :server:installDist
+# Checkouts from Windows lose the executable bit and may carry CRLF line endings.
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew --no-daemon -q :server:installDist
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
