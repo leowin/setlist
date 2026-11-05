@@ -61,6 +61,8 @@ interface AudioEngine {
     fun setListenMode(mode: ListenMode)
     /** Level meter gain (linear) or automatic; the detection itself adapts to the level anyway. */
     fun setInputGain(gain: Float, automatic: Boolean)
+    /** Onset threshold: flux must exceed median × factor + floor (defaults 2.0 / 0.6). */
+    fun setSensitivity(factor: Float, floor: Float)
     /** Recent microphone peak in dBFS after the meter gain; -120 when silent. */
     fun inputLevelDb(): Float
     fun inputGain(): Float
@@ -133,6 +135,7 @@ class SilentAudioEngine : AudioEngine {
     override fun pollHits(): List<DetectedHit> = emptyList()
     override fun setListenMode(mode: ListenMode) {}
     override fun setInputGain(gain: Float, automatic: Boolean) {}
+    override fun setSensitivity(factor: Float, floor: Float) {}
     override fun inputLevelDb() = -120f
     override fun inputGain() = 1f
     override fun learnProfile(midi: Int) {}

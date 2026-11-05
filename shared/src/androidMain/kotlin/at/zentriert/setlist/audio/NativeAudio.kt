@@ -40,6 +40,7 @@ internal object NativeAudio {
     external fun pollHits(handle: Long, frames: LongArray, classes: IntArray, confidences: FloatArray, levels: FloatArray, features: FloatArray, extra: FloatArray): Int
     external fun setListenMode(handle: Long, mode: Int)
     external fun setInputGain(handle: Long, gain: Float, automatic: Boolean)
+    external fun setSensitivity(handle: Long, factor: Float, floor: Float)
     external fun inputLevelDb(handle: Long): Float
     external fun inputGain(handle: Long): Float
     external fun learnProfile(handle: Long, midi: Int)

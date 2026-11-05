@@ -148,7 +148,7 @@ fun CalibrationScreen(vm: MainViewModel, songId: String?) {
                 val rec = vm.lastRecognized
                 Box(Modifier.fillMaxWidth().height(96.dp).background(if (rec != null && rec.first >= 0) Amber.copy(alpha = 0.25f) else Color(0xFF1C1C1C), MaterialTheme.shapes.large), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Live-Test", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Live-Test · gehört: ${vm.heardCount}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         val drums = vm.calibrationInstrument == Instrument.DRUMS
                         Text(
                             when {

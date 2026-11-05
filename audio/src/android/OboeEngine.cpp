@@ -39,12 +39,14 @@ bool OboeEngine::openInput() {
         ->setChannelCount(oboe::ChannelCount::Mono)
         ->setSampleRate(stream_->getSampleRate())
         ->setSampleRateConversionQuality(oboe::SampleRateConversionQuality::Medium)
-        ->setInputPreset(oboe::InputPreset::Unprocessed)   // no AGC / noise suppression on the drums
+        // No automatic gain or noise suppression on the drums; VoiceRecognition gives healthy levels on
+        // most phones, Unprocessed is the fallback (some devices deliver almost nothing with it).
+        ->setInputPreset(oboe::InputPreset::VoiceRecognition)
         ->setDataCallback(&inputCallback_)
         ->setErrorCallback(&inputCallback_);
     oboe::Result result = builder.openStream(input_);
     if (result != oboe::Result::OK) {
-        builder.setInputPreset(oboe::InputPreset::VoiceRecognition);
+        builder.setInputPreset(oboe::InputPreset::Unprocessed);
         result = builder.openStream(input_);
     }
     if (result != oboe::Result::OK) {

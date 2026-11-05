@@ -42,6 +42,8 @@ data class PerformSettings(
     /** Level meter: automatic or a fixed gain in dB. */
     val micAutoGain: Boolean = true,
     val micGainDb: Int = 0,
+    /** Onset sensitivity 0–100 (50 = default thresholds). */
+    val listenSensitivity: Int = 50,
 ) {
     companion object {
         const val MIN_FONT = 18f
@@ -84,6 +86,7 @@ class SettingsStore(private val store: KeyValueStore) {
         practiceGrid = store.getInt("practiceGrid", 0),
         micAutoGain = store.getBoolean("micAutoGain", true),
         micGainDb = store.getInt("micGainDb", 0),
+        listenSensitivity = store.getInt("listenSensitivity", 50),
     )
 
     fun save(s: PerformSettings) {
@@ -116,5 +119,6 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putInt("practiceGrid", s.practiceGrid)
         store.putBoolean("micAutoGain", s.micAutoGain)
         store.putInt("micGainDb", s.micGainDb)
+        store.putInt("listenSensitivity", s.listenSensitivity)
     }
 }

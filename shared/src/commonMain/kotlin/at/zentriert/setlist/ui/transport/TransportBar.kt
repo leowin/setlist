@@ -299,13 +299,17 @@ private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: (
                 if (settings.micAutoGain) Text("Verstärkung ×${(vm.micGainApplied * 10).toInt() / 10f}", fontSize = 12.sp, color = DimColor)
                 else {
                     Text("Verstärkung ${settings.micGainDb} dB", fontSize = 12.sp, color = DimColor)
-                    Slider(value = settings.micGainDb.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(micGainDb = v.toInt()) } }, valueRange = 0f..36f)
+                    Slider(value = settings.micGainDb.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(micGainDb = v.toInt()) } }, valueRange = -24f..36f)
                 }
                 Text(
-                    "Android lässt die Mikrofon-Empfindlichkeit nicht ändern; die Verstärkung gilt für die Anzeige. Die Erkennung passt sich dem Pegel selbst an – " +
+                    "Android lässt die Mikrofon-Empfindlichkeit nicht ändern; Verstärkung/Dämpfung gelten für die Anzeige. Die Erkennung passt sich dem Pegel selbst an – " +
                         "wichtig ist nur, dass der Balken bei Schlägen ausschlägt und nicht dauernd im Rot steht (Übersteuerung).",
                     fontSize = 12.sp, color = DimColor,
                 )
+                Text("Empfindlichkeit der Schlagerkennung: ${settings.listenSensitivity}", fontWeight = FontWeight.Bold)
+                Slider(value = settings.listenSensitivity.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(listenSensitivity = v.toInt()) } }, valueRange = 0f..100f)
+                Text("Höher = auch leise Schläge zählen (mehr Fehlalarme), niedriger = nur deutliche Anschläge. Gehört seit Mikrofon ein: ${vm.heardCount}" +
+                    (vm.lastHeardLevelDb?.let { ", letzter ${it.toInt()} dB" } ?: ""), fontSize = 12.sp, color = DimColor)
                 Text("Mikrofon-Verzögerung: ${settings.micOffsetMs} ms" + (vm.calibration.micOffsetMeasuredMs?.let { " (gemessen $it)" } ?: ""), fontWeight = FontWeight.Bold)
                 Slider(value = settings.micOffsetMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(micOffsetMs = v.toInt()) } }, valueRange = -150f..300f)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -313,7 +317,8 @@ private fun MetronomeSettingsDialog(vm: MainViewModel, song: Song?, onDismiss: (
                     if (vm.loopbackMeasuring) { CircularProgressIndicator(Modifier.width(20.dp).height(20.dp), strokeWidth = 2.dp); Text("hört die Klicks … (9 s)", fontSize = 12.sp) }
                 }
                 Text(
-                    "Spielt neun Klicks über den Lautsprecher und misst, wie spät das Mikrofon sie hört (Handy frei hinlegen, laut).",
+                    "Spielt neun Metronom-Klicks über den Lautsprecher des Handys und misst, wie spät das Mikrofon sie hört. Dafür Kopfhörer abstecken, " +
+                        "Medien-Lautstärke hoch und das Handy frei hinlegen.",
                     fontSize = 12.sp, color = DimColor,
                 )
                 vm.micError?.let { Text(it, color = Color(0xFFEF5350), fontSize = 12.sp) }

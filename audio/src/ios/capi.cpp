@@ -56,6 +56,7 @@ int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confide
     }
     return n;
 }
+void sl_set_sensitivity(sl_engine* e, float factor, float floor) { E(e)->engine.listener.setSensitivity(factor, floor); }
 void sl_set_input_gain(sl_engine* e, float gain, int automatic) { E(e)->engine.listener.setInputGain(gain, automatic != 0); }
 float sl_input_level_db(sl_engine* e) { return E(e)->engine.listener.inputLevelDb(); }
 float sl_input_gain(sl_engine* e) { return E(e)->engine.listener.inputGain(); }

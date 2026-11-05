@@ -202,6 +202,11 @@ Java_at_zentriert_setlist_audio_NativeAudio_pollHits(JNIEnv* env, jobject, jlong
 }
 
 JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setSensitivity(JNIEnv*, jobject, jlong h, jfloat factor, jfloat floor) {
+    engine(h)->engine.listener.setSensitivity(factor, floor);
+}
+
+JNIEXPORT void JNICALL
 Java_at_zentriert_setlist_audio_NativeAudio_setInputGain(JNIEnv*, jobject, jlong h, jfloat gain, jboolean automatic) {
     engine(h)->engine.listener.setInputGain(gain, automatic == JNI_TRUE);
 }

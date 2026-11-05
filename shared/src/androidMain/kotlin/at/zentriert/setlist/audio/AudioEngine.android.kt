@@ -86,6 +86,7 @@ class AndroidAudioEngine : AudioEngine {
     }
     override fun setListenMode(mode: ListenMode) = NativeAudio.setListenMode(handle, mode.ordinal)
     override fun setInputGain(gain: Float, automatic: Boolean) = NativeAudio.setInputGain(handle, gain, automatic)
+    override fun setSensitivity(factor: Float, floor: Float) = NativeAudio.setSensitivity(handle, factor, floor)
     override fun inputLevelDb(): Float = NativeAudio.inputLevelDb(handle)
     override fun inputGain(): Float = NativeAudio.inputGain(handle)
     override fun learnProfile(midi: Int) = NativeAudio.learnProfile(handle, midi)

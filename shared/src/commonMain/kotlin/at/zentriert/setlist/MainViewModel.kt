@@ -1180,6 +1180,11 @@ class MainViewModel(
         private set
     var micGainApplied by mutableStateOf(1f)
         private set
+    /** Everything the listener reported since the microphone went on (diagnostics in the calibration screen). */
+    var heardCount by mutableStateOf(0)
+        private set
+    var lastHeardLevelDb by mutableStateOf<Float?>(null)
+        private set
     private var hitPoller: Job? = null
     private var take: Take? = null
     private var loopbackHits = ArrayList<Double>()
@@ -1245,6 +1250,9 @@ class MainViewModel(
 
     fun applyMicGain() {
         audio.setInputGain(10f.pow(settings.micGainDb / 20f), settings.micAutoGain)
+        // 0 = very strict (3.0 / 1.2) … 50 = default (2.0 / 0.6) … 100 = hair trigger (1.0 / 0.05)
+        val t = settings.listenSensitivity / 100f
+        audio.setSensitivity(3f - 2f * t, (1.2f - 1.15f * t).coerceAtLeast(0.05f))
     }
 
     /** Called by playScore/startMetronome: a new take starts whenever something plays while listening. */
@@ -1258,6 +1266,8 @@ class MainViewModel(
     }
 
     private fun onHit(hit: DetectedHit) {
+        heardCount++
+        lastHeardLevelDb = hit.levelDb
         val sr = audio.sampleRate().toDouble()
         val frame = hit.frame - settings.micOffsetMs * sr.toLong() / 1000
         if (screen is Screen.Calibration) {
@@ -1408,7 +1418,7 @@ class MainViewModel(
         settings = transform(settings)
         settingsStore.save(settings)
         audio.setClickVolume(settings.clickVolume)
-        if (before.micGainDb != settings.micGainDb || before.micAutoGain != settings.micAutoGain) applyMicGain()
+        if (before.micGainDb != settings.micGainDb || before.micAutoGain != settings.micAutoGain || before.listenSensitivity != settings.listenSensitivity) applyMicGain()
         repo.author = settings.myName.ifBlank { settings.deviceId.take(8) }
     }
 

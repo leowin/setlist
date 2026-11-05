@@ -47,6 +47,7 @@ int64_t sl_input_latency_nanos(sl_engine* e);
 // Fills up to `capacity` hits (features: SL_HIT_FEATURES floats per hit; extra: cents, voices per hit); returns the count.
 int sl_poll_hits(sl_engine* e, int64_t* frames, int32_t* classes, float* confidences, float* levels, float* features, float* extra, int capacity);
 void sl_set_input_gain(sl_engine* e, float gain, int automatic);
+void sl_set_sensitivity(sl_engine* e, float factor, float floor);
 float sl_input_level_db(sl_engine* e);
 float sl_input_gain(sl_engine* e);
 // 0 = drums, 1 = monophonic (bass, voice), 2 = polyphonic (guitar, keys)

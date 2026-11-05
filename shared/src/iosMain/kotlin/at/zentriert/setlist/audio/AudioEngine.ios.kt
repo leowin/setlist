@@ -38,6 +38,7 @@ import at.zentriert.setlist.native.sl_beat_zero_frame
 import at.zentriert.setlist.native.sl_beat_frames
 import at.zentriert.setlist.native.sl_set_listen_mode
 import at.zentriert.setlist.native.sl_set_input_gain
+import at.zentriert.setlist.native.sl_set_sensitivity
 import at.zentriert.setlist.native.sl_input_level_db
 import at.zentriert.setlist.native.sl_input_gain
 import at.zentriert.setlist.native.sl_learn_profile
@@ -116,6 +117,7 @@ class IosAudioEngine : AudioEngine {
     }
     override fun setListenMode(mode: ListenMode) = sl_set_listen_mode(handle, mode.ordinal)
     override fun setInputGain(gain: Float, automatic: Boolean) = sl_set_input_gain(handle, gain, if (automatic) 1 else 0)
+    override fun setSensitivity(factor: Float, floor: Float) = sl_set_sensitivity(handle, factor, floor)
     override fun inputLevelDb(): Float = sl_input_level_db(handle)
     override fun inputGain(): Float = sl_input_gain(handle)
     override fun learnProfile(midi: Int) = sl_learn_profile(handle, midi)
