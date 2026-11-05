@@ -142,8 +142,6 @@ class MainViewModel(
 
     init {
         settingsStore.load().let { repo.author = it.myName.ifBlank { it.deviceId.take(8) } }
-        watchChanges()
-        syncAll()
         if (!audio.soundFontLoaded) viewModelScope.launch {
             soundFontReady = try { audio.loadSoundFont(Res.readBytes("files/setlist.sf2")) } catch (e: Exception) { false }
         }
@@ -1414,5 +1412,11 @@ class MainViewModel(
             key == PerformKey.NEXT -> next(repo.get(current.setlistId)?.songs?.size ?: 0)
             else -> previous()
         }
+    }
+
+    // Last, once every property above is initialised: the sync needs the settings and the engine map.
+    init {
+        watchChanges()
+        syncAll()
     }
 }
