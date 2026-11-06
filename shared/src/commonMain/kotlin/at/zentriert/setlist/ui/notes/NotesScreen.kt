@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeOff
@@ -81,7 +82,7 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
                 },
                 actions = {
                     if (score != null && score.parts.any { it.notes.isNotEmpty() }) {
-                        IconButton(onClick = { vm.openNotation(setlistId, song.id) }) { Icon(Icons.Default.LibraryMusic, "Notenbild / Tabs") }
+                        ViewToggle(notes = false, onNotes = { vm.openNotation(setlistId, song.id) }, onMixer = {})
                     }
                     IconButton(onClick = pickFile) { Icon(Icons.Default.FileOpen, "MIDI importieren") }
                 },
@@ -149,11 +150,12 @@ private fun MixPresets(vm: MainViewModel, score: Score) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
-            InstrumentDropdown(selected = settings.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(score, it) })
+            InstrumentDropdown(selected = vm.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(score, it) })
+            vm.currentBand?.let { Text("für ${it.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         Dropdown(
             label = "Ich höre",
-            options = MixMode.entries.filter { it == MixMode.ALL || it == MixMode.NONE || settings.myInstrument != null }.map { it to it.label },
+            options = MixMode.entries.filter { it == MixMode.ALL || it == MixMode.NONE || vm.myInstrument != null }.map { it to it.label },
             selected = settings.mixMode,
             onSelect = { vm.setMixMode(score, it) },
         )
@@ -162,10 +164,10 @@ private fun MixPresets(vm: MainViewModel, score: Score) {
 
 @Composable
 private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, name: String, noteCount: Int, onEdit: () -> Unit) {
-    val mix = score.mixOf(instrument)
+    val mix = vm.mixOf(score, instrument)
     val gain = mix.gain
     val muted = mix.muted
-    val solo = score.solo == instrument
+    val solo = vm.soloOf(score) == instrument
     val audible = vm.effectiveGain(score, instrument) > 0f
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -191,5 +193,14 @@ private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, na
             }
             Slider(value = gain, onValueChange = { vm.setPartGain(score, instrument, it) }, valueRange = 0f..1f)
         }
+    }
+}
+
+/** Big, easy-to-hit switch between the mixer (parts, volumes) and the sheet music of a song. */
+@Composable
+fun ViewToggle(notes: Boolean, onMixer: () -> Unit, onNotes: () -> Unit) {
+    Row(Modifier.padding(end = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        FilterChip(selected = !notes, onClick = onMixer, label = { Text("Mixer") }, leadingIcon = { Icon(Icons.Default.Tune, null) })
+        FilterChip(selected = notes, onClick = onNotes, label = { Text("Noten") }, leadingIcon = { Icon(Icons.Default.LibraryMusic, null) })
     }
 }

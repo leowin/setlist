@@ -68,6 +68,13 @@ class SyncE2ETest {
         assertEquals(100.0, a.repo.score(score.id)?.bpm)
         assertEquals("Ben", a.songs().single().updatedBy)
 
+        // Anna's personal mixer travels too (so her other phones have it); Ben keeps his own.
+        a.repo.saveMix(PersonalMix(PersonalMix.idFor("Anna", score.id), score.id, "Anna", band.id, mapOf(Instrument.BASS to PartMix(0.3f, false)), Instrument.BASS))
+        assertNull(a.sync()); assertNull(b.sync())
+        assertEquals(0.3f, b.repo.mixFor(score.id, "Anna")?.mixOf(Instrument.BASS)?.gain)
+        assertNull(b.repo.mixFor(score.id, "Ben"))
+        assertEquals(listOf("Anna", "Ben"), a.engine.status.members.sorted())
+
         // Anna deletes the setlist; it disappears at Ben's.
         a.repo.delete(a.setlists().single().id)
         assertNull(a.sync()); assertNull(b.sync())

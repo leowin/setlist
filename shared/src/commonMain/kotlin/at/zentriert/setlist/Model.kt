@@ -53,3 +53,27 @@ data class Setlist(
         }
     }.trimEnd()
 }
+
+/**
+ * One person's mixer for one song (gains, mute, solo): private to the person, but synced with the band
+ * so every phone of that person has it. [id] is `<person>|<scoreId>`, so two phones agree on it.
+ */
+@Serializable
+data class PersonalMix(
+    override val id: String,
+    val scoreId: String,
+    val person: String,
+    override val bandId: String? = null,
+    val mix: Map<Instrument, PartMix> = emptyMap(),
+    val solo: Instrument? = null,
+    override val rev: Long = 0,
+    override val updatedAt: Long = 0,
+    override val updatedBy: String = "",
+    override val deleted: Boolean = false,
+) : Synced {
+    fun mixOf(instrument: Instrument) = mix[instrument] ?: PartMix()
+
+    companion object {
+        fun idFor(person: String, scoreId: String) = "$person|$scoreId"
+    }
+}

@@ -13,12 +13,19 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +40,6 @@ import at.zentriert.setlist.Score
 import at.zentriert.setlist.Song
 import at.zentriert.setlist.notation.AlphaTex
 import at.zentriert.setlist.ui.Amber
-import at.zentriert.setlist.ui.InstrumentDropdown
 import at.zentriert.setlist.ui.transport.DimColor
 
 /**
@@ -48,9 +54,10 @@ fun NotationPane(
 ) {
     val settings = vm.settings
     val available = score.parts.filter { it.notes.isNotEmpty() }.map { it.instrument }
-    val instrument = vm.notationInstrument(score)
+    val instruments = vm.notationInstruments(score)
+    val instrument = instruments.firstOrNull()
     val view = AlphaTex.View.entries.getOrElse(settings.notationView) { AlphaTex.View.BOTH }
-    val tex = remember(score, instrument, view, song.title) { AlphaTex.render(score, song.title, listOfNotNull(instrument), view) }
+    val tex = remember(score, instruments, view, song.title) { AlphaTex.render(score, song.title, instruments, view) }
 
     Column(modifier) {
         Row(
@@ -61,11 +68,8 @@ fun NotationPane(
                 title, color = Color.White, fontSize = titleSize.sp, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = 8.dp),
             )
-            InstrumentDropdown(
-                selected = instrument, options = available, onSelect = { it?.let(vm::selectNotationInstrument) },
-                labelFor = { it.symbol }, placeholder = "–",
-            )
-            if (instrument == Instrument.BASS || instrument == Instrument.GUITAR) {
+            PartsDropdown(available, instruments, onToggle = { vm.toggleNotationInstrument(score, it) })
+            if (instruments.any { it == Instrument.BASS || it == Instrument.GUITAR }) {
                 TextButton(onClick = { vm.updateSettings { it.copy(notationView = (it.notationView + 1) % AlphaTex.View.entries.size) } }) {
                     Text(view.label, color = Amber, fontSize = 13.sp)
                 }
@@ -90,6 +94,29 @@ fun NotationPane(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 marks = if (vm.listening) vm.noteMarks.entries.joinToString(",") { "${it.key * 960 / score.ppq}:${it.value}" } else "",
             )
+        }
+    }
+}
+
+/** Picks the parts of the score view: tap to add (appended below) or remove; the label shows them in order. */
+@Composable
+private fun PartsDropdown(available: List<Instrument>, chosen: List<Instrument>, onToggle: (Instrument) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) {
+            Text(chosen.joinToString("") { it.symbol }.ifEmpty { "–" }, fontSize = 20.sp)
+            Icon(Icons.Default.ArrowDropDown, "Stimmen wählen")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            available.forEach { inst ->
+                val index = chosen.indexOf(inst)
+                DropdownMenuItem(
+                    text = { Text("${inst.symbol}  ${inst.label}" + if (index >= 0) "   ${index + 1}." else "") },
+                    leadingIcon = { Checkbox(checked = index >= 0, onCheckedChange = null) },
+                    onClick = { onToggle(inst) },
+                )
+            }
+            Text("Reihenfolge = Antipp-Reihenfolge", color = DimColor, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
         }
     }
 }

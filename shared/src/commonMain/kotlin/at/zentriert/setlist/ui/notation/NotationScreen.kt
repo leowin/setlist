@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.Score
 import at.zentriert.setlist.Song
+import at.zentriert.setlist.ui.notes.ViewToggle
 import at.zentriert.setlist.ui.transport.TransportBar
 import at.zentriert.setlist.ui.transport.TransportOptions
 
@@ -36,6 +37,7 @@ fun NotationScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Sco
             TopAppBar(
                 title = { Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = { IconButton(onClick = { vm.openNotes(setlistId, song.id) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück") } },
+                actions = { ViewToggle(notes = true, onMixer = { vm.openNotes(setlistId, song.id) }, onNotes = {}) },
             )
         },
         bottomBar = { TransportBar(vm, song, score, TransportOptions(setlistId = setlistId, navigationPadding = true)) },

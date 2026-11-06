@@ -30,8 +30,10 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Bass, Schlagzeug, Gitarre, Gesang oder „Weglassen“ (Vorschlag automatisch nach Kanal/Programm/Name);
   Tempo und Taktart der Datei können übernommen werden.
 - **Abspielen & Mixer:** Noten werden mit einem SoundFont-Synth (TinySoundFont, Auszug aus GeneralUser GS)
-  sample-genau zum Metronom abgespielt. Pro Instrument Lautstärke, Stumm und Solo; „Ich spiele …“ plus
-  „Nur ich“ / „Alle außer mir“ als Schnellwahl für jedes Handy.
+  sample-genau zum Metronom abgespielt. Pro Instrument Lautstärke, Stumm und Solo – **persönlich pro Lied**
+  (an deinen Namen gebunden, mit der Band verschlüsselt synchronisiert, damit alle deine Handys dieselbe
+  Mischung haben; Bandkollegen sehen ihre eigene). „Ich spiele …“ gilt **pro Band** und steuert „Nur ich“ /
+  „Alle außer mir“ / „Nichts“. Oben im Lied schaltet ein großer Umschalter zwischen Mixer und Notenbild.
 - **Noten-Editor** (Stift-Symbol im Noten-Bildschirm): Pianoroll für Bass/Gitarre/Gesang, Raster mit einer
   Zeile pro Pad fürs Schlagzeug. Tippen zeichnet/wählt/löscht (Werkzeug wählbar), lange drücken und ziehen
   verschiebt oder verlängert (rechter Rand), Notenwerte 1/2 bis 1/32 auch als Triole, Zoom, Undo/Redo,
@@ -39,9 +41,10 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   Drumpads, frei belegbar („Pads belegen“). **Einspielen** mit Vorzähler und Metronom, optional als Loop
   über Takte, Ersetzen oder Overdub, Quantisierung mit Raster und Stärke; **Schritt-Eingabe** setzt Noten
   am Cursor. Die Latenz zwischen Tippen und Klang wird mit „Im Takt tippen“ kalibriert und herausgerechnet.
-- **Notenbild & Tabs** (♫ im Noten-Bildschirm): klassische Notation mit alphaTab – Bass und Gitarre
+- **Notenbild & Tabs** (Umschalter „Noten“ im Lied): klassische Notation mit alphaTab – Bass und Gitarre
   wahlweise als Noten, Tab oder beides (Bundzuordnung automatisch), Gesang als Notenzeile, Schlagzeug als
-  Schlagzeugnotation. Beim Abspielen folgt ein Cursor. In der Konzertansicht schaltet ♫ zwischen den
+  Schlagzeugnotation. Mehrere Stimmen lassen sich antippen und erscheinen in der Antipp-Reihenfolge
+  untereinander als kompakte Partitur. Beim Abspielen folgt ein Cursor. In der Konzertansicht schaltet ♫ zwischen den
   Text-Anweisungen und den Noten des eigenen Instruments um. Rhythmen werden auf 1/32 quantisiert,
   längere Werte als gebundene Noten geschrieben; Triolen erscheinen vorerst als nächstliegende gerade Werte.
 - **Band-Sync im WLAN** („Band“ auf der Startseite): Ein Handy hostet, die anderen finden es per mDNS

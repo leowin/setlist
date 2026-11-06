@@ -1,5 +1,6 @@
 package at.zentriert.setlist.sync
 
+import at.zentriert.setlist.PersonalMix
 import at.zentriert.setlist.Score
 import at.zentriert.setlist.SetlistRepository
 import at.zentriert.setlist.Setlist
@@ -170,6 +171,7 @@ class SyncEngine(
             val score = repo.score(id) ?: continue
             add(ManifestEntry.SCORE, id, score.rev, score.updatedAt, score.updatedBy, false) { json.encodeToString(Score.serializer(), score) }
         }
+        for (m in data.mixes.filter { it.bandId == band.id }) add(ManifestEntry.MIX, m.id, m.rev, m.updatedAt, m.updatedBy, m.deleted) { json.encodeToString(PersonalMix.serializer(), m) }
         return items
     }
 
@@ -177,6 +179,7 @@ class SyncEngine(
         val text = when (entry.type) {
             ManifestEntry.SONG -> json.encodeToString(Song.serializer(), repo.data.value.library.first { it.id == entry.id })
             ManifestEntry.SETLIST -> json.encodeToString(Setlist.serializer(), repo.data.value.setlists.first { it.id == entry.id })
+            ManifestEntry.MIX -> json.encodeToString(PersonalMix.serializer(), repo.data.value.mixes.first { it.id == entry.id })
             else -> json.encodeToString(Score.serializer(), repo.score(entry.id)!!)
         }
         return keys.box.seal(text.encodeToByteArray())
@@ -191,15 +194,16 @@ class SyncEngine(
     }
 
     private fun apply(incoming: List<Pair<ManifestEntry, String>>) {
-        val songs = ArrayList<Song>(); val setlists = ArrayList<Setlist>(); val scores = ArrayList<Score>()
+        val songs = ArrayList<Song>(); val setlists = ArrayList<Setlist>(); val scores = ArrayList<Score>(); val mixes = ArrayList<PersonalMix>()
         for ((entry, text) in incoming) {
             when (entry.type) {
                 ManifestEntry.SONG -> songs += json.decodeFromString(Song.serializer(), text).copy(bandId = band.id)
                 ManifestEntry.SETLIST -> setlists += json.decodeFromString(Setlist.serializer(), text).copy(bandId = band.id)
                 ManifestEntry.SCORE -> scores += json.decodeFromString(Score.serializer(), text)
+                ManifestEntry.MIX -> mixes += json.decodeFromString(PersonalMix.serializer(), text).copy(bandId = band.id)
             }
         }
-        repo.applyRemote(setlists, songs, scores)
+        repo.applyRemote(setlists, songs, scores, mixes)
     }
 
     /** My version of a record both sides changed survives as "… (Fassung von <me>)". */
@@ -215,10 +219,11 @@ class SyncEngine(
                 if (owners.isEmpty()) return
                 owners.forEach { repo.copySong(it.id, band.id, suffix) }
             }
+            ManifestEntry.MIX -> {}   // a personal setting: the newer phone's version simply wins
         }
     }
 
-    private fun membersFrom(entries: List<ManifestEntry>) = entries.map { it.updatedBy }.filter { it.isNotBlank() }.distinct()
+    private fun membersFrom(entries: List<ManifestEntry>) = entries.filter { it.type != ManifestEntry.MIX }.map { it.updatedBy }.filter { it.isNotBlank() }.distinct()
 
     private suspend fun signed(method: String, path: String, body: ByteArray = ByteArray(0), extra: io.ktor.client.request.HttpRequestBuilder.() -> Unit = {}) =
         signedWithKey(keys.authKey, method, path, body, extra)

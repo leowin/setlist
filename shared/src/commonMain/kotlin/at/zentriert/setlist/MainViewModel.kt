@@ -192,14 +192,21 @@ class MainViewModel(
 
     // --- notation ---
 
-    /** Instrument shown in the sheet music; defaults to mine, else the first part with notes. */
-    var notationInstrumentChoice by mutableStateOf<Instrument?>(null)
+    /** Parts shown in the sheet music, in the order they were chosen; defaults to mine, else the first part with notes. */
+    var notationChoice by mutableStateOf<List<Instrument>>(emptyList())
         private set
-    fun notationInstrument(score: Score): Instrument? {
+    fun notationInstruments(score: Score): List<Instrument> {
         val available = score.parts.filter { it.notes.isNotEmpty() }.map { it.instrument }
-        return notationInstrumentChoice?.takeIf { it in available } ?: settings.myInstrument?.takeIf { it in available } ?: available.firstOrNull()
+        val chosen = notationChoice.filter { it in available }
+        if (chosen.isNotEmpty()) return chosen
+        return listOfNotNull(myInstrument?.takeIf { it in available } ?: available.firstOrNull())
     }
-    fun selectNotationInstrument(instrument: Instrument) { notationInstrumentChoice = instrument }
+    fun notationInstrument(score: Score): Instrument? = notationInstruments(score).firstOrNull()
+    /** Tap an instrument: adds it to the score view (at the end) or removes it; the last one stays. */
+    fun toggleNotationInstrument(score: Score, instrument: Instrument) {
+        val current = notationInstruments(score)
+        notationChoice = if (instrument in current) (if (current.size > 1) current - instrument else current) else current + instrument
+    }
 
     fun openNotes(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notes(setlistId, songId) }
     fun openNotation(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notation(setlistId, songId) }
@@ -608,13 +615,26 @@ class MainViewModel(
     private var playbackFrom = 0L
     private var playbackOffset = 0.0
 
-    /** Mixer values live in the score (per song); solo wins over everything. */
+    /** Who I am for personal settings: my band name, else this phone. */
+    val person: String get() = settings.myName.ifBlank { settings.deviceId.take(8) }
+
+    /** "Ich spiele" of the current band (falls back to the general setting). */
+    val myInstrument: Instrument? get() = settings.instrumentByBand[currentBandId.orEmpty()]?.let { Instrument.entries.getOrNull(it) } ?: settings.myInstrument
+
+    /** My mixer for a song: my own if I have one, else what is stored with the score (band default). */
+    fun personalMix(score: Score): PersonalMix =
+        repo.mixFor(score.id, person) ?: PersonalMix(PersonalMix.idFor(person, score.id), score.id, person, songOf(score)?.bandId, score.mix, score.solo)
+    fun mixOf(score: Score, instrument: Instrument) = personalMix(score).mixOf(instrument)
+    fun soloOf(score: Score) = personalMix(score).solo
+
+    /** Mixer values are personal (per song and person); solo wins over everything. */
     fun effectiveGain(score: Score, instrument: Instrument): Float {
-        val m = score.mixOf(instrument)
+        val pm = personalMix(score)
+        val m = pm.mixOf(instrument)
         val base = m.gain
-        if (score.solo != null) return if (score.solo == instrument) base else 0f
+        if (pm.solo != null) return if (pm.solo == instrument) base else 0f
         if (m.muted) return 0f
-        val me = settings.myInstrument
+        val me = myInstrument
         return when (settings.mixMode) {
             MixMode.ALL -> base
             MixMode.ONLY_ME -> if (instrument == me) base else 0f
@@ -627,15 +647,23 @@ class MainViewModel(
         score.parts.forEachIndexed { i, part -> audio.setPartGain(i, effectiveGain(score, part.instrument)) }
     }
 
-    private fun saveMix(score: Score) { repo.saveScore(score); applyMix(score) }
+    private fun saveMix(score: Score, change: (PersonalMix) -> PersonalMix) {
+        val current = personalMix(score)
+        repo.saveMix(change(current).copy(bandId = songOf(score)?.bandId))
+        applyMix(score)
+    }
     fun setPartGain(score: Score, instrument: Instrument, gain: Float) =
-        saveMix(score.copy(mix = score.mix + (instrument to score.mixOf(instrument).copy(gain = gain))))
+        saveMix(score) { it.copy(mix = it.mix + (instrument to it.mixOf(instrument).copy(gain = gain))) }
     fun toggleMute(score: Score, instrument: Instrument) =
-        saveMix(score.copy(mix = score.mix + (instrument to score.mixOf(instrument).let { it.copy(muted = !it.muted) })))
+        saveMix(score) { it.copy(mix = it.mix + (instrument to it.mixOf(instrument).let { m -> m.copy(muted = !m.muted) })) }
     fun toggleSolo(score: Score, instrument: Instrument) =
-        saveMix(score.copy(solo = if (score.solo == instrument) null else instrument))
+        saveMix(score) { it.copy(solo = if (it.solo == instrument) null else instrument) }
     fun setMixMode(score: Score?, mode: MixMode) { updateSettings { it.copy(mixMode = mode) }; score?.let(::applyMix) }
-    fun setMyInstrument(score: Score?, instrument: Instrument?) { updateSettings { it.copy(myInstrument = instrument) }; score?.let(::applyMix) }
+    /** "Ich spiele" for the current band (or the private library). */
+    fun setMyInstrument(score: Score?, instrument: Instrument?) {
+        updateSettings { s -> s.copy(instrumentByBand = s.instrumentByBand + (currentBandId.orEmpty() to (instrument?.ordinal ?: -1)), myInstrument = if (currentBandId == null) instrument else s.myInstrument) }
+        score?.let(::applyMix)
+    }
 
     fun playScore(score: Score, fromTick: Long = 0, withMetronome: Boolean = true, loop: LoopBars? = null, atNanos: Long? = null, countIn: Boolean = true) {
         stopPlayback()
@@ -1016,7 +1044,7 @@ class MainViewModel(
         val session = BandSession(bandName(), ::onBandEvent)
         band = session
         bandRole = Role.MEMBER
-        session.join(host, port, settings.myInstrument)
+        session.join(host, port, myInstrument)
     }
 
     /** Band over the internet via the server; the first to host the band's room leads it. */
@@ -1026,7 +1054,7 @@ class MainViewModel(
         if (myBand == null || url.isEmpty()) { bandStatus = "Zuerst eine Band gründen oder beitreten (und Server eintragen)"; return }
         leaveBand()
         val keys = myBand.keys()
-        val session = CloudSession(url, myBand.id, bandName(), asHost, settings.myInstrument, joinAuth = { ts ->
+        val session = CloudSession(url, myBand.id, bandName(), asHost, myInstrument, joinAuth = { ts ->
             at.zentriert.setlist.sync.Crypto.hex(at.zentriert.setlist.sync.Crypto.hmac(keys.authKey, at.zentriert.setlist.sync.BandKeys.signedText(ts, "JOIN", myBand.id, ByteArray(0)).encodeToByteArray()))
         }) { event ->
             if (event is BandEvent.Status) viewModelScope.launch(Dispatchers.Main) { bandRole = (band as? CloudSession)?.role }
@@ -1194,7 +1222,7 @@ class MainViewModel(
     /** The instrument the listener rates: mine, if the song has it, else the first part with notes, else drums. */
     fun practiceInstrument(score: Score?): Instrument {
         val parts = score?.parts?.filter { it.notes.isNotEmpty() }.orEmpty()
-        return settings.myInstrument?.takeIf { me -> parts.isEmpty() || parts.any { it.instrument == me } }
+        return myInstrument?.takeIf { me -> parts.isEmpty() || parts.any { it.instrument == me } }
             ?: parts.firstOrNull()?.instrument ?: Instrument.DRUMS
     }
 

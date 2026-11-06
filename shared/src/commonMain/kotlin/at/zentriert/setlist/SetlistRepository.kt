@@ -24,6 +24,8 @@ data class AppData(
     val library: List<Song> = emptyList(),
     /** The bands this phone plays in. */
     val bands: List<Band> = emptyList(),
+    /** Personal mixer settings per song and person (see [PersonalMix]). */
+    val mixes: List<PersonalMix> = emptyList(),
 ) {
     /** Live setlists of one band (null = private). */
     fun setlists(bandId: String?) = setlists.filter { !it.deleted && it.bandId == bandId }
@@ -113,6 +115,16 @@ class SetlistRepository(private val dir: Path) {
         data.copy(library = data.library.map { if (it.id == id) stamp(it.copy(deleted = true)) else it })
     }
 
+    // --- personal mixes ---
+
+    fun mixFor(scoreId: String, person: String): PersonalMix? =
+        _data.value.mixes.firstOrNull { it.id == PersonalMix.idFor(person, scoreId) && !it.deleted }
+
+    fun saveMix(mix: PersonalMix) = modify { data ->
+        val stamped = mix.copy(rev = mix.rev + 1, updatedAt = currentTimeMillis(), updatedBy = author)
+        data.copy(mixes = data.mixes.upsertBy(stamped) { it.id == mix.id })
+    }
+
     // --- bands ---
 
     fun addBand(band: Band) = modify { it.copy(bands = it.bands.filterNot { b -> b.id == band.id } + band) }
@@ -123,6 +135,7 @@ class SetlistRepository(private val dir: Path) {
             bands = data.bands.filterNot { it.id == bandId },
             setlists = data.setlists.filterNot { it.deleted }.map { if (it.bandId == bandId) it.copy(bandId = null, rev = 0) else it },
             library = data.library.filterNot { it.deleted }.map { if (it.bandId == bandId) it.copy(bandId = null, rev = 0) else it },
+            mixes = data.mixes.filterNot { it.deleted }.map { if (it.bandId == bandId) it.copy(bandId = null, rev = 0) else it },
         )
     }
 
@@ -168,18 +181,20 @@ class SetlistRepository(private val dir: Path) {
     // --- sync ---
 
     /** Writes records that arrived from the band as they are (revision and author included). */
-    fun applyRemote(setlists: List<Setlist> = emptyList(), songs: List<Song> = emptyList(), scores: List<Score> = emptyList()) {
+    fun applyRemote(setlists: List<Setlist> = emptyList(), songs: List<Song> = emptyList(), scores: List<Score> = emptyList(), mixes: List<PersonalMix> = emptyList()) {
         if (scores.isNotEmpty()) {
             _scores.update { it + scores.associateBy { s -> s.id } }
             scores.forEach { writeJson(Path(scoresDir, "${it.id}.json"), it) }
         }
-        if (setlists.isNotEmpty() || songs.isNotEmpty()) {
+        if (setlists.isNotEmpty() || songs.isNotEmpty() || mixes.isNotEmpty()) {
             _data.update { data ->
                 var s = data.setlists
                 for (x in setlists) s = s.upsertBy(x) { it.id == x.id }
                 var l = data.library
                 for (x in songs) l = l.upsertBy(x) { it.id == x.id }
-                data.copy(setlists = s, library = l)
+                var m = data.mixes
+                for (x in mixes) m = m.upsertBy(x) { it.id == x.id }
+                data.copy(setlists = s, library = l, mixes = m)
             }
             save(_data.value)
         }

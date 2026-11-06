@@ -44,6 +44,8 @@ data class PerformSettings(
     val micGainDb: Int = 0,
     /** Onset sensitivity 0–100 (50 = default thresholds). */
     val listenSensitivity: Int = 50,
+    /** "Ich spiele" per band (band id → instrument ordinal); "" is the private library. [myInstrument] is the fallback. */
+    val instrumentByBand: Map<String, Int> = emptyMap(),
     /** Metronome: audible click and the big beat surfaces behind the song, each on its own. */
     val clickSound: Boolean = true,
     val beatSurfaces: Boolean = true,
@@ -90,6 +92,8 @@ class SettingsStore(private val store: KeyValueStore) {
         micAutoGain = store.getBoolean("micAutoGain", true),
         micGainDb = store.getInt("micGainDb", 0),
         listenSensitivity = store.getInt("listenSensitivity", 50),
+        instrumentByBand = store.getString("instrumentByBand", "").split(';').filter { it.contains('=') }
+            .associate { it.substringBefore('=') to (it.substringAfter('=').toIntOrNull() ?: -1) },
         clickSound = store.getBoolean("clickSound", true),
         beatSurfaces = store.getBoolean("beatSurfaces", true),
     )
@@ -125,6 +129,7 @@ class SettingsStore(private val store: KeyValueStore) {
         store.putBoolean("micAutoGain", s.micAutoGain)
         store.putInt("micGainDb", s.micGainDb)
         store.putInt("listenSensitivity", s.listenSensitivity)
+        store.putString("instrumentByBand", s.instrumentByBand.entries.joinToString(";") { "${it.key}=${it.value}" })
         store.putBoolean("clickSound", s.clickSound)
         store.putBoolean("beatSurfaces", s.beatSurfaces)
     }

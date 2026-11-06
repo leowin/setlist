@@ -110,7 +110,8 @@ fun BandScreen(vm: MainViewModel) {
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Ich spiele", style = MaterialTheme.typography.labelLarge)
-                InstrumentDropdown(selected = settings.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(null, it) })
+                InstrumentDropdown(selected = vm.myInstrument, noneLabel = "– keins –", onSelect = { vm.setMyInstrument(null, it) })
+                vm.currentBand?.let { Text("in ${it.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
 
             // --- my bands ---

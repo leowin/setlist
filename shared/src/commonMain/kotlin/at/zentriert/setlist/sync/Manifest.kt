@@ -20,6 +20,7 @@ data class ManifestEntry(
         const val SONG = "song"
         const val SETLIST = "setlist"
         const val SCORE = "score"
+        const val MIX = "mix"
     }
 }
 
