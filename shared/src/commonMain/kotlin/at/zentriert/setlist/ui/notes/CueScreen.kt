@@ -155,6 +155,7 @@ fun CueScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score, t
                     Spacer(Modifier.width(8.dp))
                     Text(if (vm.cuePreviewing) "Stopp" else "Vorhören ab Takt 1 mit Klick (♩ ${track.originalBpm.toInt()})", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
+                if (vm.cueStatus.isNotEmpty()) Text(vm.cueStatus, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 Text(
                     "Negativ heißt: die Aufnahme beginnt erst nach der Eins (Pause vorne). Positiv: vor der Eins liegt Vorlauf, der übersprungen wird.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

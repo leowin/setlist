@@ -109,6 +109,12 @@ public:
         if (std::vector<float>* next = pendingPcm_.exchange(nullptr)) { delete retired_; retired_ = pcm_; pcm_ = next; needSeek_ = true; }
         { std::lock_guard<std::mutex> g(lock_); if (hasPending_) { params_ = pendingParams_; hasPending_ = false; needSeek_ = true; } }
         if (!pcm_ || !params_.active || pcm_->empty()) return;
+        // Silence until the sequence reaches the cue (count-in, lead time); start exactly on it.
+        if (seqSeconds < params_.seqStartSeconds) {
+            int skip = int((params_.seqStartSeconds - seqSeconds) * sampleRate);
+            if (skip >= frames) return;
+            out += skip; frames -= skip; seqSeconds = params_.seqStartSeconds; needSeek_ = true;
+        }
         const double rate = pcmRate_.load() > 0 ? pcmRate_.load() : sampleRate;
         const double ratioFrames = params_.ratio * rate / sampleRate;   // input frames per output frame
         double wantInput = (params_.audioStartSeconds + (seqSeconds - params_.seqStartSeconds) * params_.ratio) * rate;

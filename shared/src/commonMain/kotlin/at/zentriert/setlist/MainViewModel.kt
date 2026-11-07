@@ -725,11 +725,16 @@ class MainViewModel(
         private set
 
     /** Hears the track from the cue point together with a click at the recording's own tempo. */
+    var cueStatus by mutableStateOf("")
+        private set
+
     fun cuePreview(score: Score, track: AudioTrack, offsetMs: Int) {
         stopCuePreview()
         val slot = score.tracks.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: return
         stopPlayback(); stopMetronome()
         preloadTracks(score)
+        if (loadedTracks[slot] != track.id) { cueStatus = if (track.id in decodingTracks) "Aufnahme wird noch geladen …" else "Aufnahme nicht geladen (Datei fehlt?)"; return }
+        cueStatus = "Spur in Slot $slot, ${audio.sampleRate()} Hz, Start bei ${offsetMs} ms"
         audio.setSequence(listOf(PlaybackEvent(3600.0, 0, 0, 0)))   // keeps the sequence clock running for an hour
         audio.setLoop(0.0, 0.0)
         for (i in 0 until audio.trackSlots) audio.setTrackParams(i, 0.0, offsetMs / 1000.0, 1.0, if (i == slot) 1f else 0f, i == slot)
@@ -743,6 +748,7 @@ class MainViewModel(
         if (!cuePreviewing) return
         audio.stopPlayback(); audio.stopMetronome()
         cuePreviewing = false
+        cueStatus = ""
     }
 
     /** Nearest attack (steep rise of the envelope) to [ms] within ±[windowMs]; null when there is none. */

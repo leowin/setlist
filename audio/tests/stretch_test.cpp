@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include "Engine.h"
 #include "Stretcher.h"
 
 using namespace setlist;
@@ -52,6 +53,25 @@ int main() {
         int first = -1; for (size_t i = 0; i < out.size(); ++i) if (std::fabs(out[i]) > 0.01f) { first = int(i); break; }
         std::printf("first sound at %.1f ms (expected 1000)\n", first * 1000.0 / SR);
         CHECK(std::fabs(first - SR) < SR * 0.01);
+    }
+    {   // Through the engine: a track plus a far-away dummy event (cue preview) must sound.
+        Engine engine; engine.setSampleRate(SR);
+        engine.tracks[0].load(new std::vector<float>(in), SR);
+        TrackPlayer::Params p; p.seqStartSeconds = 0; p.audioStartSeconds = 0.5; p.ratio = 1.0; p.gain = 1.0f; p.active = true;
+        engine.tracks[0].setParams(p);
+        engine.sequencer.setSequence(new std::vector<SeqEvent>{{3600.0, 0, 0, 0}});
+        engine.play(4800, false);
+        std::vector<float> out(192 * 2);
+        double energyBefore = 0, energyAfter = 0;
+        for (int b = 0; b < SR / 192; ++b) {
+            engine.render(out.data(), 192, 2);
+            double e = 0; for (float v : out) e += std::fabs(v);
+            if (b * 192 < 4800) energyBefore += e; else if (b * 192 > 9600) energyAfter += e;
+        }
+        std::printf("engine track: before start %.3f, after %.1f\n", energyBefore, energyAfter);
+        CHECK(energyBefore < 1e-3);
+        CHECK(energyAfter > 100);
+        CHECK(engine.sequencer.playing());
     }
     std::printf(failures ? "%d FAILURE(S)\n" : "all stretch tests passed\n", failures);
     return failures ? 1 : 0;

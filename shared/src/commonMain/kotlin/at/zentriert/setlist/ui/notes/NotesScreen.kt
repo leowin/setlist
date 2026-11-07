@@ -222,15 +222,16 @@ private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, na
                 IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Noten bearbeiten") }
                 FilterChip(selected = solo, onClick = { vm.toggleSolo(score, instrument) }, label = { Text("Solo") })
                 Spacer(Modifier.width(6.dp))
-                IconButton(onClick = { vm.toggleMute(score, instrument) }) {
-                    Icon(
-                        if (audible) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        if (muted) "Stumm" else "Hörbar",
-                        tint = if (audible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                // On/off: the switch is the mute, the speaker icon shows what actually comes out (solo, "Nur ich" …).
+                Switch(checked = !muted, onCheckedChange = { vm.toggleMute(score, instrument) })
+                Icon(
+                    if (audible) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                    if (audible) "Hörbar" else "Stumm",
+                    tint = if (audible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
             }
-            Slider(value = gain, onValueChange = { vm.setPartGain(score, instrument, it) }, valueRange = 0f..1f)
+            Slider(value = gain, onValueChange = { vm.setPartGain(score, instrument, it) }, valueRange = 0f..1f, enabled = !muted)
         }
     }
 }
@@ -254,12 +255,11 @@ private fun TrackRow(vm: MainViewModel, score: Score, track: AudioTrack, onEdit:
             }
             IconButton(onClick = onCue, enabled = !missing) { Icon(Icons.Default.GraphicEq, "Startpunkt (1-1) setzen") }
             FilterChip(selected = solo, onClick = { vm.toggleTrackSolo(score, track) }, label = { Text("Solo") })
-            IconButton(onClick = { vm.toggleTrackMute(score, track) }) {
-                Icon(if (audible) Icons.Default.VolumeUp else Icons.Default.VolumeOff, if (mix.muted) "Stumm" else "Hörbar",
-                    tint = if (audible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Switch(checked = !mix.muted, onCheckedChange = { vm.toggleTrackMute(score, track) })
+            Icon(if (audible) Icons.Default.VolumeUp else Icons.Default.VolumeOff, if (audible) "Hörbar" else "Stumm",
+                tint = if (audible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         }
-        Slider(value = mix.gain, onValueChange = { vm.setTrackGain(score, track, it) }, valueRange = 0f..1f)
+        Slider(value = mix.gain, onValueChange = { vm.setTrackGain(score, track, it) }, valueRange = 0f..1f, enabled = !mix.muted)
     }
 }
 
