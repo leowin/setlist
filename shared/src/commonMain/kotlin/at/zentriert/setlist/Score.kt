@@ -34,6 +34,23 @@ data class Part(
 )
 
 /**
+ * A backing track (MP3 …) that plays along with the score, time-stretched to the current tempo.
+ * [instrument] null = "Alle": the whole band is on it. The file itself lives on the phone (audio/<id>.<ext>);
+ * only this description travels with the band.
+ */
+@Serializable
+data class AudioTrack(
+    val id: String = newId(),
+    val name: String,
+    val fileName: String,
+    val instrument: Instrument? = null,
+    /** Tempo the recording was made at and where beat 1 of bar 1 sits in it. */
+    val originalBpm: Double,
+    val offsetMs: Int = 0,
+    val gain: Float = 1f,
+)
+
+/**
  * Everything musical about a song: tempo, meter and the notes per instrument.
  * Shared between all setlist copies of a song via [Song.scoreId].
  */
@@ -53,6 +70,7 @@ data class Score(
     val rev: Long = 0,
     val updatedAt: Long = 0,
     val updatedBy: String = "",
+    val tracks: List<AudioTrack> = emptyList(),
 ) {
     fun mixOf(instrument: Instrument) = mix[instrument] ?: PartMix()
     val bpm: Double get() = tempoMap.firstOrNull()?.bpm ?: 120.0

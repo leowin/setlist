@@ -37,6 +37,10 @@ import at.zentriert.setlist.native.sl_sequence_start_frame
 import at.zentriert.setlist.native.sl_beat_zero_frame
 import at.zentriert.setlist.native.sl_beat_frames
 import at.zentriert.setlist.native.sl_set_listen_mode
+import at.zentriert.setlist.native.sl_load_track
+import at.zentriert.setlist.native.sl_clear_track
+import at.zentriert.setlist.native.sl_set_track_params
+import at.zentriert.setlist.native.sl_set_track_gain
 import at.zentriert.setlist.native.sl_set_input_gain
 import at.zentriert.setlist.native.sl_set_sensitivity
 import at.zentriert.setlist.native.sl_input_level_db
@@ -105,6 +109,12 @@ class IosAudioEngine : AudioEngine {
     override fun noteOn(part: Int, key: Int, velocity: Int) { ensureStream(); sl_note_on(handle, part, key, velocity) }
     override fun noteOff(part: Int, key: Int) = sl_note_off(handle, part, key)
     override fun outputLatencyNanos(): Long = sl_output_latency_nanos(handle)
+
+    override fun loadTrack(slot: Int, pcm: FloatArray, sampleRate: Int) { if (pcm.isNotEmpty()) pcm.usePinned { sl_load_track(handle, slot, it.addressOf(0), pcm.size, sampleRate) } }
+    override fun clearTrack(slot: Int) = sl_clear_track(handle, slot)
+    override fun setTrackParams(slot: Int, seqStart: Double, audioStart: Double, ratio: Double, gain: Float, active: Boolean) =
+        sl_set_track_params(handle, slot, seqStart, audioStart, ratio, gain, if (active) 1 else 0)
+    override fun setTrackGain(slot: Int, gain: Float) = sl_set_track_gain(handle, slot, gain)
 
     private var listeningOn = false
     override fun setListening(on: Boolean): Boolean {

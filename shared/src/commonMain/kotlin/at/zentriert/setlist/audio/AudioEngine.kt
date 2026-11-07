@@ -52,6 +52,14 @@ interface AudioEngine {
     /** Estimated delay between scheduling and sound leaving the speaker. */
     fun outputLatencyNanos(): Long
 
+    // --- backing tracks (MP3 etc.), time-stretched to the sequence tempo ---
+    val trackSlots: Int get() = 4
+    fun loadTrack(slot: Int, pcm: FloatArray, sampleRate: Int)
+    fun clearTrack(slot: Int)
+    /** Audio second [audioStart] plays at sequence second [seqStart]; [ratio] = audio seconds per sequence second. */
+    fun setTrackParams(slot: Int, seqStart: Double, audioStart: Double, ratio: Double, gain: Float, active: Boolean)
+    fun setTrackGain(slot: Int, gain: Float)
+
     // --- listening (microphone) ---
     /** Opens (or closes) the microphone for hit detection; false when it is not available. */
     fun setListening(on: Boolean): Boolean
@@ -130,6 +138,10 @@ class SilentAudioEngine : AudioEngine {
     override fun noteOff(part: Int, key: Int) {}
 
     override fun outputLatencyNanos() = 0L
+    override fun loadTrack(slot: Int, pcm: FloatArray, sampleRate: Int) {}
+    override fun clearTrack(slot: Int) {}
+    override fun setTrackParams(slot: Int, seqStart: Double, audioStart: Double, ratio: Double, gain: Float, active: Boolean) {}
+    override fun setTrackGain(slot: Int, gain: Float) {}
     override fun setListening(on: Boolean) = false
     override fun setClickSuppression(on: Boolean) {}
     override fun pollHits(): List<DetectedHit> = emptyList()

@@ -62,6 +62,12 @@ int64_t sl_sequence_start_frame(sl_engine* e);
 int64_t sl_beat_zero_frame(sl_engine* e);
 double sl_beat_frames(sl_engine* e);
 
+// --- backing tracks (4 slots) ---
+void sl_load_track(sl_engine* e, int slot, const float* pcm, int count, int sample_rate);
+void sl_clear_track(sl_engine* e, int slot);
+void sl_set_track_params(sl_engine* e, int slot, double seq_start, double audio_start, double ratio, float gain, int active);
+void sl_set_track_gain(sl_engine* e, int slot, float gain);
+
 #ifdef __cplusplus
 }
 #endif

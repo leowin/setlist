@@ -59,3 +59,6 @@ interface Discovery {
 /** Returns a function that asks for microphone access; [onResult] gets true when it is granted. */
 @Composable
 expect fun rememberMicrophonePermission(onResult: (Boolean) -> Unit): () -> Unit
+
+/** Decodes an audio file (MP3, AAC, WAV …) to mono float PCM at [targetRate]; null when the format isn't supported. */
+expect fun decodeAudio(path: String, targetRate: Int): FloatArray?

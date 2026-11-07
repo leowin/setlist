@@ -5,6 +5,8 @@
 #include <vector>
 #include "CommandQueue.h"
 #include "Listener.h"
+#include "Stretcher.h"
+#include <mutex>
 #include "Metronome.h"
 #include "Sequencer.h"
 #include "Synth.h"
@@ -18,6 +20,8 @@ public:
     Synth synth;
     CommandQueue commands;
     Listener listener;
+    static constexpr int kTracks = 4;
+    TrackPlayer tracks[kTracks];   // backing tracks (MP3 etc.), time-stretched to the sequence tempo
 
     void setSampleRate(int sampleRate) {
         sampleRate_ = sampleRate;
@@ -39,6 +43,7 @@ public:
     void stopPlayback() {
         sequencer.stop();
         if (metronomeFollows_) metronome.stop();
+        tracksPlaying_ = false;
     }
 
     void render(float* out, int frames, int channels) {
@@ -60,6 +65,7 @@ public:
         }
         sequencer.beginBlock(blockStart, frames, sampleRate_);
         if (sequencer.takeAllNotesOff()) synth.allNotesOff();
+        tracksPlaying_ = sequencer.playing();
 
         // Render in chunks between events so every note starts on its exact frame.
         int pos = 0;
@@ -82,6 +88,11 @@ private:
         int n = to - from;
         float* mono = mono_.data() + from;
         metronome.process(mono, n, frame_.load() + from);
+        if (tracksPlaying_) {
+            // Backing tracks follow the sequence clock (so loops and synced starts carry them along).
+            double seqSeconds = double(frame_.load() + from - sequencer.startFrame()) / sampleRate_;
+            for (auto& t : tracks) t.render(mono, n, seqSeconds, sampleRate_);
+        }
         if (channels == 2) {
             float* dst = out + from * 2;
             synth.render(dst, n);
@@ -100,6 +111,7 @@ private:
     int sampleRate_ = 48000;
     std::atomic<int64_t> frame_{0};
     bool metronomeFollows_ = false;
+    bool tracksPlaying_ = false;
     std::vector<float> mono_, stereo_;
 };
 

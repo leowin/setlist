@@ -169,6 +169,7 @@ class MainViewModel(
     fun edit(id: String) { leavePerformance(); screen = Screen.Edit(id) }
 
     fun perform(id: String, startAt: Int = 0) {
+        repo.get(id)?.songs?.forEach { song -> score(song)?.takeIf { it.tracks.isNotEmpty() }?.let(::preloadTracks) }
         performIndex = startAt
         blackout = false
         performBpm = null
@@ -208,7 +209,10 @@ class MainViewModel(
         notationChoice = if (instrument in current) (if (current.size > 1) current - instrument else current) else current + instrument
     }
 
-    fun openNotes(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notes(setlistId, songId) }
+    fun openNotes(setlistId: String?, songId: String) {
+        leavePerformance(); screen = Screen.Notes(setlistId, songId)
+        findSong(setlistId, songId)?.let { score(it) }?.let(::preloadTracks)
+    }
     fun openNotation(setlistId: String?, songId: String) { leavePerformance(); screen = Screen.Notation(setlistId, songId) }
 
     /** Playback position in alphaTab ticks (960 per quarter), for the notation cursor. */
@@ -632,7 +636,7 @@ class MainViewModel(
         val pm = personalMix(score)
         val m = pm.mixOf(instrument)
         val base = m.gain
-        if (pm.solo != null) return if (pm.solo == instrument) base else 0f
+        if (pm.anySolo) return if (pm.solo == instrument) base else 0f
         if (m.muted) return 0f
         val me = myInstrument
         return when (settings.mixMode) {
@@ -645,6 +649,95 @@ class MainViewModel(
 
     private fun applyMix(score: Score) {
         score.parts.forEachIndexed { i, part -> audio.setPartGain(i, effectiveGain(score, part.instrument)) }
+        score.tracks.take(audio.trackSlots).forEachIndexed { i, track -> audio.setTrackGain(i, effectiveTrackGain(score, track)) }
+    }
+
+    // --- backing tracks (MP3 …) ---
+
+    /** Personal mixer for a backing track; "Alle" tracks count as everyone, so "Nur ich" silences them. */
+    fun effectiveTrackGain(score: Score, track: AudioTrack): Float {
+        val pm = personalMix(score)
+        val m = pm.trackMixOf(track.id)
+        val base = m.gain * track.gain
+        if (pm.anySolo) return if (pm.soloTrack == track.id) base else 0f
+        if (m.muted) return 0f
+        val me = myInstrument
+        return when (settings.mixMode) {
+            MixMode.ALL -> base
+            MixMode.ONLY_ME -> if (track.instrument != null && track.instrument == me) base else 0f
+            MixMode.WITHOUT_ME -> if (track.instrument != null && track.instrument == me) 0f else base
+            MixMode.NONE -> 0f
+        }
+    }
+    fun setTrackGain(score: Score, track: AudioTrack, gain: Float) =
+        saveMix(score) { it.copy(trackMix = it.trackMix + (track.id to it.trackMixOf(track.id).copy(gain = gain))) }
+    fun toggleTrackMute(score: Score, track: AudioTrack) =
+        saveMix(score) { it.copy(trackMix = it.trackMix + (track.id to it.trackMixOf(track.id).let { m -> m.copy(muted = !m.muted) })) }
+    fun toggleTrackSolo(score: Score, track: AudioTrack) =
+        saveMix(score) { it.copy(soloTrack = if (it.soloTrack == track.id) null else track.id, solo = null) }
+
+    /** Which track sits in which engine slot, and what is still decoding. */
+    private val loadedTracks = HashMap<Int, String>()
+    var decodingTracks by mutableStateOf<Set<String>>(emptySet())
+        private set
+    var trackError by mutableStateOf<String?>(null)
+
+    /** Decodes the score's audio files into the engine slots (in the background); already loaded ones stay. */
+    fun preloadTracks(score: Score) {
+        val tracks = score.tracks.take(audio.trackSlots)
+        for (slot in 0 until audio.trackSlots) {
+            val track = tracks.getOrNull(slot)
+            if (track == null) { if (loadedTracks.remove(slot) != null) audio.clearTrack(slot); continue }
+            if (loadedTracks[slot] == track.id || track.id in decodingTracks || !repo.hasAudioFile(track)) continue
+            decodingTracks = decodingTracks + track.id
+            viewModelScope.launch(Dispatchers.Default) {
+                val pcm = runCatching { decodeAudio(repo.audioPath(track).toString(), audio.sampleRate()) }.getOrNull()
+                withContext(Dispatchers.Main) {
+                    decodingTracks = decodingTracks - track.id
+                    if (pcm == null || pcm.isEmpty()) { trackError = "„${track.name}“ konnte nicht dekodiert werden."; return@withContext }
+                    audio.loadTrack(slot, pcm, audio.sampleRate())
+                    loadedTracks[slot] = track.id
+                }
+            }
+        }
+    }
+
+    fun trackReady(track: AudioTrack) = track.id in loadedTracks.values
+    fun trackFileMissing(track: AudioTrack) = !repo.hasAudioFile(track)
+
+    /** Lines the tracks up with the sequence: audio second = offset + songSeconds × (originalBpm / current bpm). */
+    private fun applyTrackParams(score: Score, fromTick: Long, offsetSeconds: Double) {
+        val songSeconds = TempoMap(score).tickToMicros(fromTick) / 1_000_000.0
+        score.tracks.take(audio.trackSlots).forEachIndexed { i, track ->
+            val ratio = track.originalBpm / score.bpm
+            audio.setTrackParams(i, offsetSeconds, track.offsetMs / 1000.0 + songSeconds * ratio, ratio, effectiveTrackGain(score, track), active = true)
+        }
+        for (slot in score.tracks.size until audio.trackSlots) audio.setTrackParams(slot, 0.0, 0.0, 1.0, 0f, active = false)
+    }
+
+    /** Adds an audio file as a backing track of the song; [instrument] null = the whole band is on it. */
+    fun addTrack(song: Song, score: Score?, bytes: ByteArray, fileName: String, instrument: Instrument?, originalBpm: Double, offsetMs: Int, setlistId: String?) {
+        val base = score ?: Score().also { repo.saveScore(it) }
+        if (base.tracks.size >= audio.trackSlots) { trackError = "Höchstens ${audio.trackSlots} Audiospuren pro Lied."; return }
+        val track = AudioTrack(name = fileName.substringBeforeLast('.'), fileName = fileName, instrument = instrument, originalBpm = originalBpm.coerceIn(Score.MIN_BPM, Score.MAX_BPM), offsetMs = offsetMs)
+        repo.saveAudioFile(track, bytes)
+        val updated = base.copy(tracks = base.tracks + track)
+        repo.saveScore(updated)
+        if (score == null) {
+            val linked = song.copy(scoreId = updated.id)
+            if (setlistId != null) saveSong(setlistId, linked) else repo.saveLibrarySong(linked)
+        }
+        preloadTracks(updated)
+    }
+
+    fun updateTrack(score: Score, track: AudioTrack) { repo.saveScore(score.copy(tracks = score.tracks.map { if (it.id == track.id) track else it })) }
+
+    fun removeTrack(score: Score, track: AudioTrack) {
+        repo.deleteAudioFile(track)
+        val updated = score.copy(tracks = score.tracks.filterNot { it.id == track.id })
+        repo.saveScore(updated)
+        loadedTracks.entries.removeAll { it.value == track.id }
+        preloadTracks(updated)
     }
 
     private fun saveMix(score: Score, change: (PersonalMix) -> PersonalMix) {
@@ -680,6 +773,7 @@ class MainViewModel(
         val transport = TransportConfig(score.bpm, score.meter.numerator, score.meter.denominator, settings.subdivision, if (useCountIn) settings.countInBars else 0)
         val offset = if (withMetronome) transport.countInBars * transport.numerator * transport.beatSeconds else 0.0
         audio.setSequence(ScorePlayback.events(score, fromTick, offset))
+        if (score.tracks.isNotEmpty()) { preloadTracks(score); applyTrackParams(score, fromTick, offset) }
         if (loop != null) {
             val (a, b) = loop.ticks(score)
             val map = TempoMap(score)
@@ -764,7 +858,7 @@ class MainViewModel(
     /** Concert view: play the current song's notes for everyone (host) or just here. */
     fun performPlay(song: Song?) {
         val score = score(song) ?: return
-        if (score.parts.none { it.notes.isNotEmpty() }) return startMetronome(song)
+        if (score.parts.none { it.notes.isNotEmpty() } && score.tracks.isEmpty()) return startMetronome(song)
         playbackSong = song
         playFromCursor(score)
     }

@@ -78,6 +78,12 @@ class AndroidAudioEngine : AudioEngine {
     private val hitConf = FloatArray(64); private val hitLevels = FloatArray(64); private val hitFeatures = FloatArray(64 * HIT_FEATURES)
     private val hitExtra = FloatArray(128)
 
+    override fun loadTrack(slot: Int, pcm: FloatArray, sampleRate: Int) = NativeAudio.loadTrack(handle, slot, pcm, sampleRate)
+    override fun clearTrack(slot: Int) = NativeAudio.clearTrack(handle, slot)
+    override fun setTrackParams(slot: Int, seqStart: Double, audioStart: Double, ratio: Double, gain: Float, active: Boolean) =
+        NativeAudio.setTrackParams(handle, slot, seqStart, audioStart, ratio, gain, active)
+    override fun setTrackGain(slot: Int, gain: Float) = NativeAudio.setTrackGain(handle, slot, gain)
+
     private var listeningOn = false
     override fun setListening(on: Boolean): Boolean {
         if (on) ensureStream()

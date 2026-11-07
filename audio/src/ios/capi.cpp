@@ -74,4 +74,20 @@ void sl_calibration_clear(sl_engine* e, int cls) { E(e)->engine.listener.classif
 int64_t sl_sequence_start_frame(sl_engine* e) { return E(e)->engine.sequencer.startFrame(); }
 int64_t sl_beat_zero_frame(sl_engine* e) { return E(e)->engine.metronome.beatZeroFrame(); }
 double sl_beat_frames(sl_engine* e) { return E(e)->engine.metronome.beatFrames(); }
+
+void sl_load_track(sl_engine* e, int slot, const float* pcm, int count, int sampleRate) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    E(e)->engine.tracks[slot].load(new std::vector<float>(pcm, pcm + count), sampleRate);
+}
+void sl_clear_track(sl_engine* e, int slot) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    E(e)->engine.tracks[slot].load(new std::vector<float>(), 0);
+    setlist::TrackPlayer::Params p; p.active = false; E(e)->engine.tracks[slot].setParams(p);
+}
+void sl_set_track_params(sl_engine* e, int slot, double seqStart, double audioStart, double ratio, float gain, int active) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    setlist::TrackPlayer::Params p; p.seqStartSeconds = seqStart; p.audioStartSeconds = audioStart; p.ratio = ratio; p.gain = gain; p.active = active != 0;
+    E(e)->engine.tracks[slot].setParams(p);
+}
+void sl_set_track_gain(sl_engine* e, int slot, float gain) { if (slot >= 0 && slot < setlist::Engine::kTracks) E(e)->engine.tracks[slot].setGain(gain); }
 }

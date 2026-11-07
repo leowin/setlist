@@ -91,7 +91,7 @@ data class TransportOptions(
 @Composable
 fun TransportBar(vm: MainViewModel, song: Song?, score: Score?, options: TransportOptions = TransportOptions()) {
     val tempo = vm.tempoFor(song)
-    val hasNotes = score?.parts?.any { it.notes.isNotEmpty() } == true
+    val hasNotes = score?.parts?.any { it.notes.isNotEmpty() } == true || score?.tracks?.isNotEmpty() == true
     var showSettings by remember { mutableStateOf(false) }
     var editTempo by remember { mutableStateOf(false) }
     var withMetronome by remember { mutableStateOf(true) }

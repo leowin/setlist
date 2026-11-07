@@ -34,6 +34,13 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   (an deinen Namen gebunden, mit der Band verschlüsselt synchronisiert, damit alle deine Handys dieselbe
   Mischung haben; Bandkollegen sehen ihre eigene). „Ich spiele …“ gilt **pro Band** und steuert „Nur ich“ /
   „Alle außer mir“ / „Nichts“. Oben im Lied schaltet ein großer Umschalter zwischen Mixer und Notenbild.
+- **Audiospuren (MP3, AAC, WAV):** Im Lied unter „Audiospuren“ eine Aufnahme hinzufügen, zuordnen (ein Instrument
+  oder „Alle“ für eine komplette Band-Aufnahme), Tempo der Aufnahme und Beginn von Takt 1 angeben. Beim Abspielen
+  läuft sie mit Metronom, Noten und Band-Start mit und wird in Echtzeit auf das aktuelle Tempo gestreckt, ohne die
+  Tonhöhe zu verändern (WSOLA im Audiokern; gut bis etwa ±30 %). Bis zu vier Spuren pro Lied mit eigenem
+  Lautstärke/Stumm/Solo im persönlichen Mixer; „Nur ich“ lässt „Alle“-Spuren stumm, „Alle außer mir“ spielt sie.
+  Die Audiodatei bleibt auf dem Handy (die Band bekommt nur den Eintrag und sieht „Datei fehlt“, bis sie die
+  Datei selbst hinzufügt).
 - **Noten-Editor** (Stift-Symbol im Noten-Bildschirm): Pianoroll für Bass/Gitarre/Gesang, Raster mit einer
   Zeile pro Pad fürs Schlagzeug. Tippen zeichnet/wählt/löscht (Werkzeug wählbar), lange drücken und ziehen
   verschiebt oder verlängert (rechter Rand), Notenwerte 1/2 bis 1/32 auch als Triole, Zoom, Undo/Redo,
@@ -102,7 +109,7 @@ Kotlin Multiplatform + Compose Multiplatform, damit dieselbe App auch für iOS g
 - `audio/` – C++-Audio-Kern (Metronom, Klick-Synth, Sequencer, SoundFont-Synth) mit Oboe-Backend für
   Android und CoreAudio-Backend für iOS (C-API + cinterop, siehe `iosApp/README.md`). Drittanbieter und SoundFont-Erzeugung: `audio/third_party/README.md`.
   Zuhören: `Listener` (Onsets, Merkmale), `DrumClassifier` (kNN), `PitchTracker` (YIN), `ChordEstimator`
-  (nicht-negative Zerlegung in Notenvorlagen). Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
+  (nicht-negative Zerlegung in Notenvorlagen). Audiospuren: `Stretcher` (WSOLA) und `TrackPlayer`. Eigene Tests: `cmake -S audio -B build/audio && cmake --build build/audio && ctest --test-dir build/audio`.
 
 ## Bauen
 

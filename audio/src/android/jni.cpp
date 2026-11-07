@@ -276,3 +276,38 @@ Java_at_zentriert_setlist_audio_NativeAudio_beatFrames(JNIEnv*, jobject, jlong h
 }
 
 }  // extern "C"
+
+// --- backing tracks ---
+extern "C" {
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_loadTrack(JNIEnv* env, jobject, jlong h, jint slot, jfloatArray pcm, jint sampleRate) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    jsize n = env->GetArrayLength(pcm);
+    auto* data = new std::vector<float>(n);
+    env->GetFloatArrayRegion(pcm, 0, n, data->data());
+    engine(h)->engine.tracks[slot].load(data, sampleRate);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_clearTrack(JNIEnv*, jobject, jlong h, jint slot) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    engine(h)->engine.tracks[slot].load(new std::vector<float>(), 0);
+    setlist::TrackPlayer::Params p; p.active = false;
+    engine(h)->engine.tracks[slot].setParams(p);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setTrackParams(JNIEnv*, jobject, jlong h, jint slot, jdouble seqStart, jdouble audioStart, jdouble ratio, jfloat gain, jboolean active) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    setlist::TrackPlayer::Params p; p.seqStartSeconds = seqStart; p.audioStartSeconds = audioStart; p.ratio = ratio; p.gain = gain; p.active = active == JNI_TRUE;
+    engine(h)->engine.tracks[slot].setParams(p);
+}
+
+JNIEXPORT void JNICALL
+Java_at_zentriert_setlist_audio_NativeAudio_setTrackGain(JNIEnv*, jobject, jlong h, jint slot, jfloat gain) {
+    if (slot < 0 || slot >= setlist::Engine::kTracks) return;
+    engine(h)->engine.tracks[slot].setGain(gain);
+}
+
+}  // extern "C"

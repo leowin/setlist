@@ -45,6 +45,16 @@ class SetlistRepository(private val dir: Path) {
     val syncDir = Path(dir, "sync")
     /** Practice takes and microphone calibration (private to this phone). */
     val practiceDir = Path(dir, "practice")
+    /** Backing-track files (audio/<trackId>.<ext>), local to this phone. */
+    val audioDir = Path(dir, "audio")
+
+    fun audioPath(track: AudioTrack): Path = Path(audioDir, "${track.id}.${track.fileName.substringAfterLast('.', "mp3")}")
+    fun hasAudioFile(track: AudioTrack) = SystemFileSystem.exists(audioPath(track))
+    fun saveAudioFile(track: AudioTrack, bytes: ByteArray) {
+        SystemFileSystem.createDirectories(audioDir)
+        SystemFileSystem.sink(audioPath(track)).buffered().use { it.write(bytes) }
+    }
+    fun deleteAudioFile(track: AudioTrack) { runCatching { SystemFileSystem.delete(audioPath(track), mustExist = false) } }
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data.asStateFlow()
     private val _scores = MutableStateFlow(loadScores())

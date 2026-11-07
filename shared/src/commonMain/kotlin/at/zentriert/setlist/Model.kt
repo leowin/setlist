@@ -66,12 +66,17 @@ data class PersonalMix(
     override val bandId: String? = null,
     val mix: Map<Instrument, PartMix> = emptyMap(),
     val solo: Instrument? = null,
+    /** Backing tracks by track id; [soloTrack] solos one of them. */
+    val trackMix: Map<String, PartMix> = emptyMap(),
+    val soloTrack: String? = null,
     override val rev: Long = 0,
     override val updatedAt: Long = 0,
     override val updatedBy: String = "",
     override val deleted: Boolean = false,
 ) : Synced {
     fun mixOf(instrument: Instrument) = mix[instrument] ?: PartMix()
+    fun trackMixOf(trackId: String) = trackMix[trackId] ?: PartMix()
+    val anySolo: Boolean get() = solo != null || soloTrack != null
 
     companion object {
         fun idFor(person: String, scoreId: String) = "$person|$scoreId"

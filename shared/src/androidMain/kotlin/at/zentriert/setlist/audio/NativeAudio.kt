@@ -34,6 +34,11 @@ internal object NativeAudio {
     external fun currentFrame(handle: Long): Long
     external fun sampleRate(handle: Long): Int
 
+    external fun loadTrack(handle: Long, slot: Int, pcm: FloatArray, sampleRate: Int)
+    external fun clearTrack(handle: Long, slot: Int)
+    external fun setTrackParams(handle: Long, slot: Int, seqStart: Double, audioStart: Double, ratio: Double, gain: Float, active: Boolean)
+    external fun setTrackGain(handle: Long, slot: Int, gain: Float)
+
     external fun setListening(handle: Long, on: Boolean): Boolean
     external fun setClickSuppression(handle: Long, on: Boolean)
     external fun inputLatencyNanos(handle: Long): Long

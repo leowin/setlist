@@ -59,6 +59,11 @@ import at.zentriert.setlist.MainViewModel
 import at.zentriert.setlist.MixMode
 import at.zentriert.setlist.Score
 import at.zentriert.setlist.Song
+import at.zentriert.setlist.AudioTrack
+import at.zentriert.setlist.toBpmText
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.rememberFilePicker
 import at.zentriert.setlist.ui.InstrumentDropdown
@@ -70,6 +75,9 @@ import at.zentriert.setlist.ui.transport.TransportOptions
 @Composable
 fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?) {
     val pickFile = rememberFilePicker { bytes, name -> vm.startMidiImport(bytes, name, ImportTarget(setlistId, song.id)) }
+    var pendingAudio by remember { mutableStateOf<Pair<ByteArray, String>?>(null) }
+    var editingTrack by remember { mutableStateOf<AudioTrack?>(null) }
+    val pickAudio = rememberFilePicker { bytes, name -> pendingAudio = bytes to name }
 
     BackHandler { vm.closeNotes(setlistId) }
 
@@ -89,7 +97,7 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
             )
         },
         bottomBar = {
-            if (score != null && score.parts.isNotEmpty()) {
+            if (score != null && (score.parts.isNotEmpty() || score.tracks.isNotEmpty())) {
                 TransportBar(vm, song, score, TransportOptions(setlistId = setlistId, metronomeToggle = true, navigationPadding = true))
             }
         },
@@ -131,6 +139,21 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
                 }
             }
             item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Audiospuren (MP3)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Aufnahmen laufen zum Metronom und zu den Noten mit und werden live auf das aktuelle Tempo gestreckt (Tonhöhe bleibt). " +
+                                "Die Datei bleibt auf diesem Handy; die Band bekommt nur den Eintrag.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        score?.tracks?.forEach { track -> TrackRow(vm, score, track, onEdit = { editingTrack = track }) }
+                        OutlinedButton(onClick = pickAudio, enabled = (score?.tracks?.size ?: 0) < 4) { Icon(Icons.Default.FileOpen, null); Spacer(Modifier.width(8.dp)); Text("Audiodatei hinzufügen") }
+                        vm.trackError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+            }
+            item {
                 val missing = Instrument.entries.filter { inst -> score?.parts?.none { it.instrument == inst } ?: true }
                 if (missing.isNotEmpty()) {
                     InstrumentDropdown(
@@ -141,6 +164,21 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
                 }
             }
         }
+    }
+
+    pendingAudio?.let { (bytes, name) ->
+        TrackDialog(
+            title = name, defaultBpm = score?.bpm ?: 120.0, track = null,
+            onSave = { inst, bpm, off -> vm.addTrack(song, score, bytes, name, inst, bpm, off, setlistId); pendingAudio = null },
+            onDelete = null, onDismiss = { pendingAudio = null },
+        )
+    }
+    editingTrack?.let { track ->
+        if (score != null) TrackDialog(
+            title = track.name, defaultBpm = score.bpm, track = track,
+            onSave = { inst, bpm, off -> vm.updateTrack(score, track.copy(instrument = inst, originalBpm = bpm, offsetMs = off)); editingTrack = null },
+            onDelete = { vm.removeTrack(score, track); editingTrack = null }, onDismiss = { editingTrack = null },
+        )
     }
 }
 
@@ -194,6 +232,64 @@ private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, na
             Slider(value = gain, onValueChange = { vm.setPartGain(score, instrument, it) }, valueRange = 0f..1f)
         }
     }
+}
+
+@Composable
+private fun TrackRow(vm: MainViewModel, score: Score, track: AudioTrack, onEdit: () -> Unit) {
+    val mix = vm.personalMix(score).trackMixOf(track.id)
+    val solo = vm.personalMix(score).soloTrack == track.id
+    val audible = vm.effectiveTrackGain(score, track) > 0f
+    val missing = vm.trackFileMissing(track)
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).clickable(onClick = onEdit)) {
+                Text("🎧 ${track.name}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    (track.instrument?.let { "${it.symbol} ${it.label}" } ?: "Alle") + " · ♩ ${track.originalBpm.toInt()}" +
+                        (if (track.offsetMs != 0) " · Start ${track.offsetMs} ms" else "") +
+                        when { missing -> " · Datei fehlt auf diesem Handy"; track.id in vm.decodingTracks -> " · lädt …"; !vm.trackReady(track) -> "" ; else -> "" },
+                    style = MaterialTheme.typography.bodySmall, color = if (missing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FilterChip(selected = solo, onClick = { vm.toggleTrackSolo(score, track) }, label = { Text("Solo") })
+            IconButton(onClick = { vm.toggleTrackMute(score, track) }) {
+                Icon(if (audible) Icons.Default.VolumeUp else Icons.Default.VolumeOff, if (mix.muted) "Stumm" else "Hörbar",
+                    tint = if (audible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Slider(value = mix.gain, onValueChange = { vm.setTrackGain(score, track, it) }, valueRange = 0f..1f)
+    }
+}
+
+/** Instrument (or "Alle"), the recording's tempo and where beat 1 starts in it. */
+@Composable
+fun TrackDialog(title: String, defaultBpm: Double, track: AudioTrack?, onSave: (Instrument?, Double, Int) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
+    var instrument by remember { mutableStateOf(track?.instrument) }
+    var bpm by remember { mutableStateOf((track?.originalBpm ?: defaultBpm).toBpmText()) }
+    var offset by remember { mutableStateOf((track?.offsetMs ?: 0).toString()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Enthält", style = MaterialTheme.typography.labelLarge)
+                InstrumentDropdown(selected = instrument, noneLabel = "Alle (ganze Band)", onSelect = { instrument = it })
+                OutlinedTextField(bpm, { bpm = it }, label = { Text("Tempo der Aufnahme (BPM)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(offset, { offset = it }, label = { Text("Beginn von Takt 1 in der Aufnahme (ms)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Text("Spielt das Lied schneller oder langsamer als die Aufnahme, wird sie passend gestreckt. Negativer Beginn = die Aufnahme startet nach Takt 1.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(instrument, bpm.replace(',', '.').toDoubleOrNull() ?: defaultBpm, offset.toIntOrNull() ?: 0) }) { Text("Übernehmen") }
+        },
+        dismissButton = {
+            Row {
+                if (onDelete != null) TextButton(onClick = onDelete) { Text("Entfernen") }
+                TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            }
+        },
+    )
 }
 
 /** Big, easy-to-hit switch between the mixer (parts, volumes) and the sheet music of a song. */
