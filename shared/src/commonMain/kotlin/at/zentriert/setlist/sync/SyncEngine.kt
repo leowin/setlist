@@ -98,11 +98,17 @@ class SyncEngine(
         var local = localItems(known)
         var plan = Merge.plan(local.map { it.entry }, remote.entries, state.base)
 
-        // 1. Take what the others changed; keep my conflicting versions as copies.
+        // 1. Take what the others changed; keep my conflicting versions as copies. Audio files come last,
+        //    once the scores that describe them are in place; a file we already have is never fetched again.
         if (plan.download.isNotEmpty() || plan.conflicts.isNotEmpty()) {
-            val incoming = (plan.download + plan.conflicts.map { it.remote }).map { it to open(it) }
+            val (audio, records) = (plan.download + plan.conflicts.map { it.remote }).partition { it.type == ManifestEntry.AUDIO }
+            val incoming = records.map { it to open(it) }
             for (c in plan.conflicts) keepLocalCopy(c.local)
             apply(incoming)
+            for (entry in audio) {
+                val track = repo.allTracks().firstOrNull { it.second.id == entry.id }?.second ?: continue
+                if (!repo.hasAudioFile(track)) repo.saveAudioFile(track, openBytes(entry))
+            }
             local = localItems(known)
             plan = Merge.plan(local.map { it.entry }, remote.entries, remote.entries)
         }
@@ -172,6 +178,18 @@ class SyncEngine(
             add(ManifestEntry.SCORE, id, score.rev, score.updatedAt, score.updatedBy, false) { json.encodeToString(Score.serializer(), score) }
         }
         for (m in data.mixes.filter { it.bandId == band.id }) add(ManifestEntry.MIX, m.id, m.rev, m.updatedAt, m.updatedBy, m.deleted) { json.encodeToString(PersonalMix.serializer(), m) }
+        // Backing-track files of the band's scores: immutable per track id, uploaded once (≤ 28 MB).
+        for (id in scoreIds) {
+            val score = repo.score(id) ?: continue
+            for (track in score.tracks) {
+                val known = knownByKey["${ManifestEntry.AUDIO}/${track.id}"]
+                if (known != null) { items += Item(known, null); continue }
+                val bytes = repo.readAudioFile(track) ?: continue
+                if (bytes.size > MAX_AUDIO_BYTES) continue
+                val sealed = keys.box.seal(bytes)
+                items += Item(ManifestEntry(ManifestEntry.AUDIO, track.id, 1, 0, "", Crypto.hex(Crypto.sha256(sealed)), false), sealed)
+            }
+        }
         return items
     }
 
@@ -180,9 +198,18 @@ class SyncEngine(
             ManifestEntry.SONG -> json.encodeToString(Song.serializer(), repo.data.value.library.first { it.id == entry.id })
             ManifestEntry.SETLIST -> json.encodeToString(Setlist.serializer(), repo.data.value.setlists.first { it.id == entry.id })
             ManifestEntry.MIX -> json.encodeToString(PersonalMix.serializer(), repo.data.value.mixes.first { it.id == entry.id })
+            ManifestEntry.AUDIO -> return keys.box.seal(repo.allTracks().first { it.second.id == entry.id }.let { repo.readAudioFile(it.second)!! })
             else -> json.encodeToString(Score.serializer(), repo.score(entry.id)!!)
         }
         return keys.box.seal(text.encodeToByteArray())
+    }
+
+    private suspend fun openBytes(entry: ManifestEntry): ByteArray {
+        val response = signed("GET", "/rooms/${band.id}/blobs/${entry.blobId}")
+        response.expect(HttpStatusCode.OK)
+        val bytes = response.bodyAsBytes()
+        if (Crypto.hex(Crypto.sha256(bytes)) != entry.blobId) throw IllegalStateException("Datenpaket beschädigt")
+        return keys.box.open(bytes) ?: throw IllegalStateException("Datenpaket passt nicht zum Band-Schlüssel")
     }
 
     private suspend fun open(entry: ManifestEntry): String {
@@ -220,10 +247,11 @@ class SyncEngine(
                 owners.forEach { repo.copySong(it.id, band.id, suffix) }
             }
             ManifestEntry.MIX -> {}   // a personal setting: the newer phone's version simply wins
+            ManifestEntry.AUDIO -> {} // same file id, other bytes: the server's copy stays
         }
     }
 
-    private fun membersFrom(entries: List<ManifestEntry>) = entries.filter { it.type != ManifestEntry.MIX }.map { it.updatedBy }.filter { it.isNotBlank() }.distinct()
+    private fun membersFrom(entries: List<ManifestEntry>) = entries.filter { it.type != ManifestEntry.MIX && it.type != ManifestEntry.AUDIO }.map { it.updatedBy }.filter { it.isNotBlank() }.distinct()
 
     private suspend fun signed(method: String, path: String, body: ByteArray = ByteArray(0), extra: io.ktor.client.request.HttpRequestBuilder.() -> Unit = {}) =
         signedWithKey(keys.authKey, method, path, body, extra)
@@ -271,5 +299,7 @@ class SyncEngine(
     companion object {
         /** Forgets the sync state of a band this phone left. */
         fun forget(stateDir: Path, bandId: String) { runCatching { SystemFileSystem.delete(Path(stateDir, "$bandId.json"), mustExist = false) } }
+        /** Cloud Run accepts requests up to 32 MiB; the sealed blob adds a few bytes. */
+        const val MAX_AUDIO_BYTES = 28 * 1024 * 1024
     }
 }

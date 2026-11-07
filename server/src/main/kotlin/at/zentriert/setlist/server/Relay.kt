@@ -63,7 +63,7 @@ data class ServerConfig(
 )
 
 private val json = Json { ignoreUnknownKeys = true }
-private const val MAX_BLOB = 4 * 1024 * 1024
+private const val MAX_BLOB = 30 * 1024 * 1024   // backing tracks; Cloud Run caps requests at 32 MiB
 private const val MAX_SHARE = 2 * 1024 * 1024
 private val SHARE_TTL_DAYS = setOf(7, 30, 90)
 

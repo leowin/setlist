@@ -11,6 +11,7 @@ import at.zentriert.setlist.ui.band.BandScreen
 import at.zentriert.setlist.ui.editor.EditorScreen
 import at.zentriert.setlist.ui.notation.NotationScreen
 import at.zentriert.setlist.ui.notes.MidiImportScreen
+import at.zentriert.setlist.ui.notes.CueScreen
 import at.zentriert.setlist.ui.notes.NotesScreen
 import at.zentriert.setlist.ui.practice.CalibrationScreen
 import at.zentriert.setlist.ui.practice.PracticeDialogs
@@ -31,6 +32,13 @@ fun App(vm: MainViewModel) {
                 Screen.Library -> LibraryScreen(vm, library, scores)
                 Screen.Band -> BandScreen(vm)
                 is Screen.Calibration -> CalibrationScreen(vm, screen.songId)
+                is Screen.Cue -> {
+                    val song = vm.findSong(screen.setlistId, screen.songId)
+                    val score = scores[song?.scoreId]
+                    val track = score?.tracks?.firstOrNull { it.id == screen.trackId }
+                    if (song != null && score != null && track != null) CueScreen(vm, screen.setlistId, song, score, track)
+                    else LaunchedEffect(Unit) { vm.openNotes(screen.setlistId, screen.songId) }
+                }
                 is Screen.Edit -> data.setlists.firstOrNull { it.id == screen.setlistId && !it.deleted }
                     ?.let { EditScreen(vm, it, data.library(it.bandId), scores) }
                     ?: LaunchedEffect(Unit) { vm.goHome() }

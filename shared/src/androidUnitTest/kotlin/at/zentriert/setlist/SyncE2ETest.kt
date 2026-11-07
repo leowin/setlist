@@ -75,6 +75,15 @@ class SyncE2ETest {
         assertNull(b.repo.mixFor(score.id, "Ben"))
         assertEquals(listOf("Anna", "Ben"), a.engine.status.members.sorted())
 
+        // A backing track's file travels with the band (once), and lands under the same track id at Ben's.
+        val track = AudioTrack(name = "Demo", fileName = "demo.mp3", originalBpm = 97.0)
+        val mp3 = ByteArray(20000) { (it * 31).toByte() }
+        a.repo.saveAudioFile(track, mp3)
+        a.repo.saveScore(a.repo.score(score.id)!!.copy(tracks = listOf(track)))
+        assertNull(a.sync()); assertNull(b.sync())
+        assertEquals(listOf("Demo"), b.repo.score(score.id)?.tracks?.map { it.name })
+        assertTrue(b.repo.readAudioFile(track).contentEquals(mp3))
+
         // Anna deletes the setlist; it disappears at Ben's.
         a.repo.delete(a.setlists().single().id)
         assertNull(a.sync()); assertNull(b.sync())

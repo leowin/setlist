@@ -10,7 +10,7 @@ Link-Ablage und gemeinsame Uhr.
 |---|---|---|
 | `PUT /rooms/{id}` | Raum einer Band anlegen | Raum-ID (HMAC des Band-Schlüssels) + Prüfschlüssel |
 | `GET/PUT /rooms/{id}/manifest` | Inhaltsverzeichnis der Band (ETag/If-Match gegen Konflikte) | verschlüsselter Blob, Versionsnummer |
-| `GET/PUT /rooms/{id}/blobs/{sha256}` | Lieder/Noten/Setlists, benannt nach dem Hash des Chiffrats | verschlüsselte Blobs |
+| `GET/PUT /rooms/{id}/blobs/{sha256}` | Lieder/Noten/Setlists/Audiospuren (bis 30 MB), benannt nach dem Hash des Chiffrats | verschlüsselte Blobs |
 | `DELETE /rooms/{id}` | Band löscht ihren Raum | – |
 | `POST /shares?ttl=7\|30\|90`, `GET /shares/{id}/blob` | Teilen-Links | verschlüsselter Blob, Ablaufzeit |
 | `GET /s/{id}` | Vorschau-Seite: entschlüsselt im Browser mit dem Schlüssel aus dem `#`-Teil des Links | nur die Anfrage |

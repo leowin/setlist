@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.readByteArray
 import kotlinx.io.readString
 import kotlinx.io.writeString
 
@@ -55,6 +56,10 @@ class SetlistRepository(private val dir: Path) {
         SystemFileSystem.sink(audioPath(track)).buffered().use { it.write(bytes) }
     }
     fun deleteAudioFile(track: AudioTrack) { runCatching { SystemFileSystem.delete(audioPath(track), mustExist = false) } }
+    fun readAudioFile(track: AudioTrack): ByteArray? =
+        if (!hasAudioFile(track)) null else runCatching { SystemFileSystem.source(audioPath(track)).buffered().use { it.readByteArray() } }.getOrNull()
+    /** Every track of every score, with the score it belongs to. */
+    fun allTracks(): List<Pair<Score, AudioTrack>> = _scores.value.values.flatMap { sc -> sc.tracks.map { sc to it } }
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data.asStateFlow()
     private val _scores = MutableStateFlow(loadScores())

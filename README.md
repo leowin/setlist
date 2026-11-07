@@ -39,8 +39,11 @@ zerschneiden und auf der Bühne mit großer Schrift durchblättern.
   läuft sie mit Metronom, Noten und Band-Start mit und wird in Echtzeit auf das aktuelle Tempo gestreckt, ohne die
   Tonhöhe zu verändern (WSOLA im Audiokern; gut bis etwa ±30 %). Bis zu vier Spuren pro Lied mit eigenem
   Lautstärke/Stumm/Solo im persönlichen Mixer; „Nur ich“ lässt „Alle“-Spuren stumm, „Alle außer mir“ spielt sie.
-  Die Audiodatei bleibt auf dem Handy (die Band bekommt nur den Eintrag und sieht „Datei fehlt“, bis sie die
-  Datei selbst hinzufügt).
+  Die Audiodatei wird – wie alles – verschlüsselt mit der Band abgeglichen (bis 28 MB pro Datei, einmalig
+  hochgeladen) und landet auf allen Handys der Band. Im Lied gibt es zu jeder Spur einen **Startpunkt-Editor**
+  mit Wellenform: Wellenform unter die gelbe Linie (Eins von Takt 1) ziehen, Taktraster im Aufnahmetempo,
+  Zoom, ±10 ms, „Auf Anschlag“ einrasten, Vorhören ab Takt 1 mit Klick; auch ein Startpunkt vor dem Beginn der
+  Aufnahme ist möglich.
 - **Noten-Editor** (Stift-Symbol im Noten-Bildschirm): Pianoroll für Bass/Gitarre/Gesang, Raster mit einer
   Zeile pro Pad fürs Schlagzeug. Tippen zeichnet/wählt/löscht (Werkzeug wählbar), lange drücken und ziehen
   verschiebt oder verlängert (rechter Rand), Notenwerte 1/2 bis 1/32 auch als Triole, Zoom, Undo/Redo,

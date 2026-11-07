@@ -21,6 +21,8 @@ data class ManifestEntry(
         const val SETLIST = "setlist"
         const val SCORE = "score"
         const val MIX = "mix"
+        /** Backing-track file (encrypted bytes), id = track id; immutable, so rev is always 1. */
+        const val AUDIO = "audio"
     }
 }
 

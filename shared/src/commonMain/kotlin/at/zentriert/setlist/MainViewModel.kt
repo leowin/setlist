@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import at.zentriert.setlist.audio.AudioEngine
 import at.zentriert.setlist.audio.MetronomePosition
+import at.zentriert.setlist.audio.PlaybackEvent
 import at.zentriert.setlist.audio.ScorePlayback
 import at.zentriert.setlist.audio.TransportConfig
 import at.zentriert.setlist.band.Band
@@ -76,6 +77,8 @@ sealed interface Screen {
     data object Band : Screen
     /** Microphone calibration: drum sounds, latency. */
     data class Calibration(val songId: String?) : Screen
+    /** Cue point (start of bar 1) of a backing track, on its waveform. */
+    data class Cue(val setlistId: String?, val songId: String, val trackId: String) : Screen
 }
 
 /** Where an imported score should go. */
@@ -680,6 +683,8 @@ class MainViewModel(
     private val loadedTracks = HashMap<Int, String>()
     var decodingTracks by mutableStateOf<Set<String>>(emptySet())
         private set
+    /** Envelope of each loaded track at 1 ms resolution (peak per millisecond), for the cue editor. */
+    val trackEnvelopes = mutableStateMapOf<String, FloatArray>()
     var trackError by mutableStateOf<String?>(null)
 
     /** Decodes the score's audio files into the engine slots (in the background); already loaded ones stay. */
@@ -695,6 +700,7 @@ class MainViewModel(
                 withContext(Dispatchers.Main) {
                     decodingTracks = decodingTracks - track.id
                     if (pcm == null || pcm.isEmpty()) { trackError = "„${track.name}“ konnte nicht dekodiert werden."; return@withContext }
+                    trackEnvelopes[track.id] = envelopeOf(pcm, audio.sampleRate())
                     audio.loadTrack(slot, pcm, audio.sampleRate())
                     loadedTracks[slot] = track.id
                 }
@@ -702,7 +708,54 @@ class MainViewModel(
         }
     }
 
+    private fun envelopeOf(pcm: FloatArray, sampleRate: Int): FloatArray {
+        val perMs = (sampleRate / 1000).coerceAtLeast(1)
+        val out = FloatArray(pcm.size / perMs + 1)
+        for (i in pcm.indices) { val a = kotlin.math.abs(pcm[i]); val b = i / perMs; if (a > out[b]) out[b] = a }
+        return out
+    }
+
     fun trackReady(track: AudioTrack) = track.id in loadedTracks.values
+
+    // --- cue editor ---
+
+    fun openCue(setlistId: String?, songId: String, trackId: String) { leavePerformance(); screen = Screen.Cue(setlistId, songId, trackId) }
+
+    var cuePreviewing by mutableStateOf(false)
+        private set
+
+    /** Hears the track from the cue point together with a click at the recording's own tempo. */
+    fun cuePreview(score: Score, track: AudioTrack, offsetMs: Int) {
+        stopCuePreview()
+        val slot = score.tracks.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: return
+        stopPlayback(); stopMetronome()
+        preloadTracks(score)
+        audio.setSequence(listOf(PlaybackEvent(3600.0, 0, 0, 0)))   // keeps the sequence clock running for an hour
+        audio.setLoop(0.0, 0.0)
+        for (i in 0 until audio.trackSlots) audio.setTrackParams(i, 0.0, offsetMs / 1000.0, 1.0, if (i == slot) 1f else 0f, i == slot)
+        applyTransport(TransportConfig(track.originalBpm, score.meter.numerator, score.meter.denominator, 1, 0))
+        audio.setClickVolume(clickVolume())
+        audio.play(leadSeconds = 0.1, withMetronome = true)
+        cuePreviewing = true
+    }
+
+    fun stopCuePreview() {
+        if (!cuePreviewing) return
+        audio.stopPlayback(); audio.stopMetronome()
+        cuePreviewing = false
+    }
+
+    /** Nearest attack (steep rise of the envelope) to [ms] within ±[windowMs]; null when there is none. */
+    fun snapToOnset(envelope: FloatArray, ms: Int, windowMs: Int = 150): Int? {
+        val lo = (ms - windowMs).coerceAtLeast(1); val hi = (ms + windowMs).coerceAtMost(envelope.size - 1)
+        if (lo >= hi) return null
+        var best: Int? = null; var bestRise = 0f
+        for (i in lo..hi) {
+            val rise = envelope[i] - envelope[maxOf(0, i - 5)]
+            if (rise > bestRise && envelope[i] > 0.05f) { bestRise = rise; best = i }
+        }
+        return best?.let { b -> var s = b; while (s > 0 && envelope[s - 1] < envelope[s] && envelope[s - 1] > 0.02f) s--; s }
+    }
     fun trackFileMissing(track: AudioTrack) = !repo.hasAudioFile(track)
 
     /** Lines the tracks up with the sequence: audio second = offset + songSeconds × (originalBpm / current bpm). */

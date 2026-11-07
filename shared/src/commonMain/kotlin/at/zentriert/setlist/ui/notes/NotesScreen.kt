@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.PlayArrow
@@ -144,10 +145,10 @@ fun NotesScreen(vm: MainViewModel, setlistId: String?, song: Song, score: Score?
                         Text("Audiospuren (MP3)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text(
                             "Aufnahmen laufen zum Metronom und zu den Noten mit und werden live auf das aktuelle Tempo gestreckt (Tonhöhe bleibt). " +
-                                "Die Datei bleibt auf diesem Handy; die Band bekommt nur den Eintrag.",
+                                "Die Datei wird verschlüsselt mit der Band abgeglichen (bis 28 MB), damit alle sie haben.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        score?.tracks?.forEach { track -> TrackRow(vm, score, track, onEdit = { editingTrack = track }) }
+                        score?.tracks?.forEach { track -> TrackRow(vm, score, track, onEdit = { editingTrack = track }, onCue = { vm.openCue(setlistId, song.id, track.id) }) }
                         OutlinedButton(onClick = pickAudio, enabled = (score?.tracks?.size ?: 0) < 4) { Icon(Icons.Default.FileOpen, null); Spacer(Modifier.width(8.dp)); Text("Audiodatei hinzufügen") }
                         vm.trackError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     }
@@ -235,7 +236,7 @@ private fun PartCard(vm: MainViewModel, score: Score, instrument: Instrument, na
 }
 
 @Composable
-private fun TrackRow(vm: MainViewModel, score: Score, track: AudioTrack, onEdit: () -> Unit) {
+private fun TrackRow(vm: MainViewModel, score: Score, track: AudioTrack, onEdit: () -> Unit, onCue: () -> Unit) {
     val mix = vm.personalMix(score).trackMixOf(track.id)
     val solo = vm.personalMix(score).soloTrack == track.id
     val audible = vm.effectiveTrackGain(score, track) > 0f
@@ -247,10 +248,11 @@ private fun TrackRow(vm: MainViewModel, score: Score, track: AudioTrack, onEdit:
                 Text(
                     (track.instrument?.let { "${it.symbol} ${it.label}" } ?: "Alle") + " · ♩ ${track.originalBpm.toInt()}" +
                         (if (track.offsetMs != 0) " · Start ${track.offsetMs} ms" else "") +
-                        when { missing -> " · Datei fehlt auf diesem Handy"; track.id in vm.decodingTracks -> " · lädt …"; !vm.trackReady(track) -> "" ; else -> "" },
+                        when { missing -> " · Datei noch nicht da (kommt mit dem Abgleich)"; track.id in vm.decodingTracks -> " · lädt …"; else -> "" },
                     style = MaterialTheme.typography.bodySmall, color = if (missing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            IconButton(onClick = onCue, enabled = !missing) { Icon(Icons.Default.GraphicEq, "Startpunkt (1-1) setzen") }
             FilterChip(selected = solo, onClick = { vm.toggleTrackSolo(score, track) }, label = { Text("Solo") })
             IconButton(onClick = { vm.toggleTrackMute(score, track) }) {
                 Icon(if (audible) Icons.Default.VolumeUp else Icons.Default.VolumeOff, if (mix.muted) "Stumm" else "Hörbar",
